@@ -723,7 +723,7 @@ class _HighlightsList extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        SelectableText(
+                        Text(
                           highlight,
                           style: TextStyle(
                             fontSize: 14.5,
