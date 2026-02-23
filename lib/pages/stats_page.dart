@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:book_app_themed/models/book.dart';
+import 'package:book_app_themed/pages/book_details_page.dart';
 import 'package:book_app_themed/state/app_controller.dart';
 import 'package:book_app_themed/utils/date_formatters.dart';
 import 'package:book_app_themed/widgets/book_cover.dart';
@@ -99,6 +100,14 @@ class _StatsPageState extends State<StatsPage> {
     return nowYear;
   }
 
+  Future<void> _openBookDetails(BuildContext context, String bookId) async {
+    await Navigator.of(context).push<void>(
+      CupertinoPageRoute<void>(
+        builder: (_) => BookDetailsPage(controller: widget.controller, bookId: bookId),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -131,6 +140,7 @@ class _StatsPageState extends State<StatsPage> {
                           selectedYear: selectedYear,
                           stats: yearly,
                           onPickYear: () => _pickYear(context, stats.availableYears, selectedYear),
+                          onOpenBook: (bookId) => _openBookDetails(context, bookId),
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -219,12 +229,14 @@ class _YearOverviewSection extends StatelessWidget {
     required this.selectedYear,
     required this.stats,
     required this.onPickYear,
+    required this.onOpenBook,
   });
 
   final List<int> years;
   final int selectedYear;
   final _YearStats stats;
   final VoidCallback onPickYear;
+  final ValueChanged<String> onOpenBook;
 
   @override
   Widget build(BuildContext context) {
@@ -360,7 +372,10 @@ class _YearOverviewSection extends StatelessWidget {
             ),
             itemBuilder: (context, index) {
               final item = stats.books[index];
-              return _YearBookGridCard(book: item);
+              return _YearBookGridCard(
+                book: item,
+                onTap: () => onOpenBook(item.item.id),
+              );
             },
           ),
       ],
@@ -520,55 +535,65 @@ class _AuthorChip extends StatelessWidget {
 }
 
 class _YearBookGridCard extends StatelessWidget {
-  const _YearBookGridCard({required this.book});
+  const _YearBookGridCard({
+    required this.book,
+    required this.onTap,
+  });
 
   final _FinishedBook book;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(12),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: BookCover(
-                title: book.item.title,
-                coverUrl: book.item.coverUrl,
-                width: double.infinity,
-                height: double.infinity,
-                borderRadius: 12,
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: CupertinoColors.separator.resolveFrom(context).withValues(alpha: 0.22),
+                  ),
+                ),
+                child: BookCover(
+                  title: book.item.title,
+                  coverUrl: book.item.coverUrl,
+                  width: double.infinity,
+                  height: double.infinity,
+                  borderRadius: 12,
+                ),
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          book.item.title,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 12.5,
-            fontWeight: FontWeight.w700,
-            color: CupertinoColors.label.resolveFrom(context),
-            height: 1.15,
+          const SizedBox(height: 6),
+          Text(
+            book.item.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w700,
+              color: CupertinoColors.label.resolveFrom(context),
+              height: 1.15,
+            ),
           ),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          formatDateShort(book.item.endDateIso),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 11.5,
-            color: CupertinoColors.secondaryLabel.resolveFrom(context),
+          const SizedBox(height: 2),
+          Text(
+            formatDateShort(book.item.endDateIso),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 11.5,
+              color: CupertinoColors.secondaryLabel.resolveFrom(context),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

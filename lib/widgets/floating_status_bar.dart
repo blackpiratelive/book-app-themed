@@ -8,10 +8,12 @@ class FloatingStatusBar extends StatelessWidget {
     super.key,
     required this.selected,
     required this.onChanged,
+    required this.onOpenStats,
   });
 
   final BookStatus selected;
   final ValueChanged<BookStatus> onChanged;
+  final VoidCallback onOpenStats;
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +71,8 @@ class FloatingStatusBar extends StatelessWidget {
                     selected: selected == BookStatus.readingList,
                     onTap: () => onChanged(BookStatus.readingList),
                   ),
+                  const SizedBox(width: 7),
+                  _StatsButton(onTap: onOpenStats),
                 ],
               ),
             ),
@@ -150,6 +154,74 @@ class _ShelfButton extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 _buttonLabel(status),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w700,
+                  color: subLabelColor,
+                  letterSpacing: 0.1,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatsButton extends StatelessWidget {
+  const _StatsButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final tint = CupertinoColors.systemIndigo.resolveFrom(context);
+    final labelColor = isDark
+        ? CupertinoColors.white.withValues(alpha: 0.88)
+        : CupertinoColors.black.withValues(alpha: 0.78);
+    final subLabelColor = isDark
+        ? CupertinoColors.white.withValues(alpha: 0.72)
+        : CupertinoColors.black.withValues(alpha: 0.62);
+
+    return Expanded(
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(0, 0),
+        onPressed: onTap,
+        child: Container(
+          height: 64,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  Icon(CupertinoIcons.chart_bar_fill, size: 20, color: labelColor),
+                  Positioned(
+                    right: -2,
+                    top: -1,
+                    child: Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: tint,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Stats',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(

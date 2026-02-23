@@ -2,8 +2,8 @@ import 'package:book_app_themed/models/book.dart';
 import 'package:book_app_themed/pages/book_details_page.dart';
 import 'package:book_app_themed/pages/book_editor_page.dart';
 import 'package:book_app_themed/pages/book_search_page.dart';
-import 'package:book_app_themed/pages/stats_page.dart';
 import 'package:book_app_themed/pages/settings_page.dart';
+import 'package:book_app_themed/pages/stats_page.dart';
 import 'package:book_app_themed/state/app_controller.dart';
 import 'package:book_app_themed/widgets/brand_app_icon.dart';
 import 'package:book_app_themed/widgets/book_card.dart';
@@ -177,13 +177,6 @@ class HomePage extends StatelessWidget {
                       ),
                       const SizedBox(width: 10),
                       _CircleActionButton(
-                        icon: CupertinoIcons.chart_bar_fill,
-                        iconSize: 19,
-                        onPressed: () => _openStats(context),
-                        tintColor: CupertinoColors.systemIndigo,
-                      ),
-                      const SizedBox(width: 10),
-                      _CircleActionButton(
                         icon: CupertinoIcons.clear_circled_solid,
                         iconSize: 20,
                         onPressed: () => controller.setSelectedShelf(BookStatus.abandoned),
@@ -250,6 +243,7 @@ class HomePage extends StatelessWidget {
               child: FloatingStatusBar(
                 selected: controller.selectedShelf,
                 onChanged: controller.setSelectedShelf,
+                onOpenStats: () => _openStats(context),
               ),
             ),
           ],

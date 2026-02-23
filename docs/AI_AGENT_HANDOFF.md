@@ -68,7 +68,6 @@ Features:
 - Small brand label text (`BlackPirateX Book tracker`) under the heading
 - Top-right action buttons:
   - Settings button
-  - Stats button (opens local-cache stats page)
   - Abandoned shelf quick-access button (next to Settings)
   - Add (`+`) button (larger size per user request)
 - Shelf count subtitle (e.g. number of books in currently selected shelf)
@@ -88,6 +87,8 @@ Features:
   - `Reading`
   - `Read`
   - `Reading List`
+- Extra action:
+  - `Stats` (opens local-cache stats page)
 
 Note:
 - `Abandoned` is intentionally not part of the floating bottom shelf bar; it is accessed from the dedicated header icon button.
@@ -316,6 +317,7 @@ Behavior:
   - total pages read
   - top authors
   - finished books cover grid
+- Yearly book cover grid items are tappable and open `BookDetailsPage`
 - Always shows trend charts:
   - books read over years
   - pages read over years
