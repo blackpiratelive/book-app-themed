@@ -369,7 +369,7 @@ BoxDecoration _fieldDecoration(BuildContext context) {
     color: CupertinoColors.systemBackground.resolveFrom(context),
     borderRadius: BorderRadius.circular(12),
     border: Border.all(
-      color: CupertinoColors.separator.resolveFrom(context).withOpacity(0.35),
+      color: CupertinoColors.separator.resolveFrom(context).withValues(alpha: 0.35),
     ),
   );
 }
@@ -422,11 +422,11 @@ class _ChoiceChipButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         decoration: BoxDecoration(
           color: selected
-              ? CupertinoColors.activeBlue.withOpacity(0.16)
+              ? CupertinoColors.activeBlue.withValues(alpha: 0.16)
               : CupertinoColors.tertiarySystemFill.resolveFrom(context),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? CupertinoColors.activeBlue : border.withOpacity(0.35),
+            color: selected ? CupertinoColors.activeBlue : border.withValues(alpha: 0.35),
           ),
         ),
         child: Row(
@@ -480,7 +480,7 @@ class _DateRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: border.withOpacity(0.25)),
+        border: Border.all(color: border.withValues(alpha: 0.25)),
       ),
       child: Row(
         children: <Widget>[

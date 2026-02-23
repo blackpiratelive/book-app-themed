@@ -99,7 +99,7 @@ extension ReadingMediumX on ReadingMedium {
   IconData get icon {
     switch (this) {
       case ReadingMedium.kindle:
-        return CupertinoIcons.device_tablet_portrait;
+        return CupertinoIcons.device_phone_portrait;
       case ReadingMedium.physicalBook:
         return CupertinoIcons.book_solid;
       case ReadingMedium.mobile:

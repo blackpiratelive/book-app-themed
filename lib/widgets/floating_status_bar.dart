@@ -19,7 +19,7 @@ class FloatingStatusBar extends StatelessWidget {
     final border = CupertinoColors.separator.resolveFrom(context);
     final background = CupertinoColors.systemBackground
         .resolveFrom(context)
-        .withOpacity(isDark ? 0.55 : 0.72);
+        .withValues(alpha: isDark ? 0.55 : 0.72);
 
     return SafeArea(
       top: false,
@@ -31,10 +31,10 @@ class FloatingStatusBar extends StatelessWidget {
             decoration: BoxDecoration(
               color: background,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: border.withOpacity(0.35)),
+              border: Border.all(color: border.withValues(alpha: 0.35)),
               boxShadow: <BoxShadow>[
                 BoxShadow(
-                  color: CupertinoColors.black.withOpacity(isDark ? 0.24 : 0.08),
+                  color: CupertinoColors.black.withValues(alpha: isDark ? 0.24 : 0.08),
                   blurRadius: 18,
                   offset: const Offset(0, 8),
                 ),

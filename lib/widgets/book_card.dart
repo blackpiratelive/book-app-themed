@@ -25,11 +25,11 @@ class BookCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: cardColor,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: border.withOpacity(0.4)),
+          border: Border.all(color: border.withValues(alpha: 0.4)),
           boxShadow: <BoxShadow>[
             BoxShadow(
-              color: CupertinoColors.black.withOpacity(
-                CupertinoTheme.of(context).brightness == Brightness.dark ? 0.14 : 0.05,
+              color: CupertinoColors.black.withValues(
+                alpha: CupertinoTheme.of(context).brightness == Brightness.dark ? 0.14 : 0.05,
               ),
               blurRadius: 18,
               offset: const Offset(0, 6),
@@ -131,7 +131,7 @@ class _MiniChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: background,
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: border.withOpacity(0.35)),
+        border: Border.all(color: border.withValues(alpha: 0.35)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),

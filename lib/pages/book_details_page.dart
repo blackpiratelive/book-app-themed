@@ -136,7 +136,7 @@ class BookDetailsPage extends StatelessWidget {
                       const SizedBox(width: 10),
                       CupertinoButton(
                         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        color: CupertinoColors.systemRed.withOpacity(0.14),
+                        color: CupertinoColors.systemRed.withValues(alpha: 0.14),
                         borderRadius: BorderRadius.circular(12),
                         onPressed: () => _deleteBook(context, book),
                         child: const Icon(
@@ -277,11 +277,10 @@ class _InfoRow extends StatelessWidget {
           ),
           if (!isLast) ...<Widget>[
             const SizedBox(height: 10),
-            Container(height: 1, color: separator.withOpacity(0.25)),
+            Container(height: 1, color: separator.withValues(alpha: 0.25)),
           ],
         ],
       ),
     );
   }
 }
-
