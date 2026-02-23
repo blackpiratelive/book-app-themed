@@ -1,16 +1,18 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub/
+.pub-cache/
+build/
+
+# IDE
+.idea/
 *.iml
-.gradle
-/local.properties
-/.idea
+.vscode/
+
+# OS
 .DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
-local.properties
-/app/build
-/app/release
-*.apk
-*.aab
-*.jks
-*.keystore
+Thumbs.db
+
