@@ -28,6 +28,18 @@ jobs:
       - name: Generate Android platform scaffolding
         run: flutter create --platforms=android --project-name book_app_themed --org com.example.booktracker .
 
+      - name: Enable Android internet permission
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          manifest = Path("android/app/src/main/AndroidManifest.xml")
+          text = manifest.read_text()
+          perm = '    <uses-permission android:name="android.permission.INTERNET"/>\n'
+          if "android.permission.INTERNET" not in text:
+              text = text.replace("<application", f"{perm}<application", 1)
+              manifest.write_text(text)
+          PY
+
       - name: Install dependencies
         run: flutter pub get
 

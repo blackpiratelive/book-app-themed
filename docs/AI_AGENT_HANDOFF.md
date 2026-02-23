@@ -101,7 +101,8 @@ Features:
 Implemented in `lib/widgets/book_cover.dart`.
 
 Features:
-- Loads `coverUrl` via `Image.network`
+- Loads `coverUrl` via `CachedNetworkImage`
+- Disk-caches remote cover images for reuse across launches
 - Loading indicator while fetching image
 - Error fallback if URL fails
 - Default generated cover placeholder with gradient + book icon + title text
@@ -301,6 +302,7 @@ These changes were specifically requested by the user and are already applied:
 - Larger plus button on home page
 - Bottom floating blurred shelf selector (instead of top segmented bar)
 - Bottom floating shelf selector restyled to dark segmented capsule (Apple Fitness-style visual direction)
+- Bottom floating shelf selector now adapts visually for both light and dark themes (same segmented capsule style)
 - Shelf names changed to:
   - Reading
   - Read
@@ -315,6 +317,7 @@ These changes were specifically requested by the user and are already applied:
 ## Constraints / Expectations for Future Work
 
 - Keep `flutter analyze` clean; recent backend/settings implementation required a `mounted` guard in async settings actions (`use_build_context_synchronously` lint).
+- Because Android platform files are generated in CI (`flutter create`), the CI workflow now patches `android/app/src/main/AndroidManifest.xml` to add `INTERNET` permission so release APKs can access backend APIs and cover images.
 
 Follow these unless the user explicitly changes direction:
 

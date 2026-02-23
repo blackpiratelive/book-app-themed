@@ -16,8 +16,12 @@ class FloatingStatusBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-    final border = CupertinoColors.white.withValues(alpha: isDark ? 0.10 : 0.16);
-    final background = const Color(0xFF111214).withValues(alpha: isDark ? 0.90 : 0.84);
+    final border = isDark
+        ? CupertinoColors.white.withValues(alpha: 0.10)
+        : CupertinoColors.black.withValues(alpha: 0.08);
+    final background = isDark
+        ? const Color(0xFF111214).withValues(alpha: 0.90)
+        : const Color(0xFFF2F4F7).withValues(alpha: 0.90);
 
     return SafeArea(
       top: false,
@@ -37,7 +41,8 @@ class FloatingStatusBar extends StatelessWidget {
                   offset: const Offset(0, 10),
                 ),
                 BoxShadow(
-                  color: CupertinoColors.white.withValues(alpha: 0.03),
+                  color: (isDark ? CupertinoColors.white : CupertinoColors.black)
+                      .withValues(alpha: isDark ? 0.03 : 0.02),
                   blurRadius: 2,
                   offset: const Offset(0, 1),
                 ),
@@ -87,18 +92,25 @@ class _ShelfButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
     final accent = CupertinoTheme.of(context).primaryColor;
     final labelColor = selected
         ? accent
-        : CupertinoColors.white.withValues(alpha: 0.88);
+        : (isDark
+            ? CupertinoColors.white.withValues(alpha: 0.88)
+            : CupertinoColors.black.withValues(alpha: 0.78));
     final subLabelColor = selected
         ? accent.withValues(alpha: 0.96)
-        : CupertinoColors.white.withValues(alpha: 0.72);
+        : (isDark
+            ? CupertinoColors.white.withValues(alpha: 0.72)
+            : CupertinoColors.black.withValues(alpha: 0.62));
     final bg = selected
-        ? const Color(0xFF2C2D31)
+        ? (isDark ? const Color(0xFF2C2D31) : CupertinoColors.white)
         : CupertinoColors.transparent;
     final border = selected
-        ? CupertinoColors.white.withValues(alpha: 0.06)
+        ? (isDark
+            ? CupertinoColors.white.withValues(alpha: 0.06)
+            : CupertinoColors.black.withValues(alpha: 0.05))
         : CupertinoColors.transparent;
 
     return Expanded(
@@ -117,12 +129,13 @@ class _ShelfButton extends StatelessWidget {
             boxShadow: selected
                 ? <BoxShadow>[
                     BoxShadow(
-                      color: CupertinoColors.black.withValues(alpha: 0.24),
-                      blurRadius: 10,
+                      color: CupertinoColors.black.withValues(alpha: isDark ? 0.24 : 0.10),
+                      blurRadius: isDark ? 10 : 12,
                       offset: const Offset(0, 4),
                     ),
                     BoxShadow(
-                      color: CupertinoColors.white.withValues(alpha: 0.03),
+                      color: (isDark ? CupertinoColors.white : CupertinoColors.black)
+                          .withValues(alpha: isDark ? 0.03 : 0.015),
                       blurRadius: 0,
                       offset: const Offset(0, 1),
                     ),

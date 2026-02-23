@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 
 class BookCover extends StatelessWidget {
@@ -31,12 +32,11 @@ class BookCover extends StatelessWidget {
           ),
           child: coverUrl.trim().isEmpty
               ? _DefaultCover(title: title)
-              : Image.network(
-                  coverUrl,
+              : CachedNetworkImage(
+                  imageUrl: coverUrl.trim(),
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _DefaultCover(title: title),
-                  loadingBuilder: (context, child, progress) {
-                    if (progress == null) return child;
+                  errorWidget: (_, __, ___) => _DefaultCover(title: title),
+                  placeholder: (context, _) {
                     return Stack(
                       fit: StackFit.expand,
                       children: <Widget>[
@@ -105,4 +105,3 @@ class _DefaultCover extends StatelessWidget {
     );
   }
 }
-

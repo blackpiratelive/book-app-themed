@@ -315,7 +315,10 @@ class _SettingsPageState extends State<SettingsPage> {
                                   ? const CupertinoActivityIndicator()
                                   : const Text(
                                       'Test Connection',
-                                      style: TextStyle(fontWeight: FontWeight.w700),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: CupertinoColors.white,
+                                      ),
                                     ),
                             ),
                           ),
