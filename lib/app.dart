@@ -1,3 +1,4 @@
+import 'package:book_app_themed/pages/first_run_intro_page.dart';
 import 'package:book_app_themed/pages/home_page.dart';
 import 'package:book_app_themed/state/app_controller.dart';
 import 'package:flutter/cupertino.dart';
@@ -16,7 +17,9 @@ class BookTrackerApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           title: 'BlackPirateX Book tracker',
           theme: controller.themeData,
-          home: HomePage(controller: controller),
+          home: controller.shouldShowOnboarding
+              ? FirstRunIntroPage(controller: controller)
+              : HomePage(controller: controller),
         );
       },
     );

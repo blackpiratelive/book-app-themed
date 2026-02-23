@@ -7,10 +7,7 @@ import 'package:book_app_themed/services/app_storage_service.dart';
 import 'package:flutter/cupertino.dart';
 
 class BackendReloadResult {
-  const BackendReloadResult({
-    required this.bookCount,
-    required this.message,
-  });
+  const BackendReloadResult({required this.bookCount, required this.message});
 
   final int bookCount;
   final String message;
@@ -22,8 +19,8 @@ class AppController extends ChangeNotifier {
   AppController({
     required AppStorageService storage,
     BackendApiService backendApi = const BackendApiService(),
-  })  : _storage = storage,
-        _backendApi = backendApi;
+  }) : _storage = storage,
+       _backendApi = backendApi;
 
   final AppStorageService _storage;
   final BackendApiService _backendApi;
@@ -31,6 +28,7 @@ class AppController extends ChangeNotifier {
   final List<BookItem> _books = <BookItem>[];
   bool _isDarkMode = false;
   bool _isLoading = true;
+  bool _hasSeenOnboarding = false;
   BookStatus _selectedShelf = BookStatus.reading;
   String _backendApiUrl = '';
   String _backendPassword = '';
@@ -42,6 +40,8 @@ class AppController extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   bool get isDarkMode => _isDarkMode;
+  bool get hasSeenOnboarding => _hasSeenOnboarding;
+  bool get shouldShowOnboarding => !_isLoading && !_hasSeenOnboarding;
   BookStatus get selectedShelf => _selectedShelf;
   List<BookItem> get books => List<BookItem>.unmodifiable(_books);
   String get backendApiUrl => _backendApiUrl;
@@ -58,9 +58,9 @@ class AppController extends ChangeNotifier {
       .toList(growable: false);
 
   CupertinoThemeData get themeData => CupertinoThemeData(
-        brightness: _isDarkMode ? Brightness.dark : Brightness.light,
-        primaryColor: CupertinoColors.activeBlue,
-      );
+    brightness: _isDarkMode ? Brightness.dark : Brightness.light,
+    primaryColor: CupertinoColors.activeBlue,
+  );
 
   Future<void> initialize() async {
     final snapshot = await _storage.load();
@@ -68,6 +68,7 @@ class AppController extends ChangeNotifier {
       ..clear()
       ..addAll(snapshot.books);
     _isDarkMode = snapshot.isDarkMode;
+    _hasSeenOnboarding = snapshot.hasSeenOnboarding;
     _backendApiUrl = snapshot.backendApiUrl.trim().isEmpty
         ? defaultBackendApiUrl
         : snapshot.backendApiUrl;
@@ -107,6 +108,13 @@ class AppController extends ChangeNotifier {
     _isDarkMode = enabled;
     notifyListeners();
     await _storage.saveDarkMode(enabled);
+  }
+
+  Future<void> markOnboardingSeen() async {
+    if (_hasSeenOnboarding) return;
+    _hasSeenOnboarding = true;
+    notifyListeners();
+    await _storage.saveHasSeenOnboarding(true);
   }
 
   Future<void> addBook(BookDraft draft) async {
@@ -158,7 +166,10 @@ class AppController extends ChangeNotifier {
     await _markLocalBookChanges();
   }
 
-  Future<void> updateBookHighlights(String bookId, List<String> highlights) async {
+  Future<void> updateBookHighlights(
+    String bookId,
+    List<String> highlights,
+  ) async {
     final index = _books.indexWhere((b) => b.id == bookId);
     if (index < 0) return;
 
@@ -181,7 +192,8 @@ class AppController extends ChangeNotifier {
         );
         _hasLocalBookChanges = false;
         _lastBackendSyncAtIso = DateTime.now().toIso8601String();
-        _lastBackendStatusMessage = 'Updated highlights for "${updated.title}" on backend.';
+        _lastBackendStatusMessage =
+            'Updated highlights for "${updated.title}" on backend.';
         notifyListeners();
         await _storage.saveBackendSyncState(
           backendCachePrimed: _backendCachePrimed,
@@ -199,7 +211,10 @@ class AppController extends ChangeNotifier {
     await _markLocalBookChanges();
   }
 
-  Future<void> updateBookHighlightsLocally(String bookId, List<String> highlights) async {
+  Future<void> updateBookHighlightsLocally(
+    String bookId,
+    List<String> highlights,
+  ) async {
     final index = _books.indexWhere((b) => b.id == bookId);
     if (index < 0) return;
 
@@ -213,7 +228,10 @@ class AppController extends ChangeNotifier {
     await _markLocalBookChanges();
   }
 
-  Future<void> updateBookProgressLocally(String bookId, int progressPercent) async {
+  Future<void> updateBookProgressLocally(
+    String bookId,
+    int progressPercent,
+  ) async {
     final index = _books.indexWhere((b) => b.id == bookId);
     if (index < 0) return;
 
@@ -263,11 +281,16 @@ class AppController extends ChangeNotifier {
     final pw = password ?? _backendPassword;
     _setBackendBusy(true, message: 'Testing backend connection...');
     try {
-      final result = await _backendApi.testConnection(baseUrl: url, password: pw);
+      final result = await _backendApi.testConnection(
+        baseUrl: url,
+        password: pw,
+      );
       _setBackendBusy(false, message: result.message);
       return result;
     } catch (e) {
-      final message = e is BackendApiException ? e.message : 'Connection test failed.';
+      final message = e is BackendApiException
+          ? e.message
+          : 'Connection test failed.';
       _setBackendBusy(false, message: message);
       rethrow;
     }
@@ -276,20 +299,24 @@ class AppController extends ChangeNotifier {
   Future<List<BackendSearchBookResult>> searchBackendBooks(String query) async {
     final url = _backendApiUrl.trim();
     if (url.isEmpty) {
-      throw const BackendApiException('Set a backend API URL in Settings first.');
+      throw const BackendApiException(
+        'Set a backend API URL in Settings first.',
+      );
     }
     return _backendApi.searchBooks(baseUrl: url, query: query);
   }
 
-  Future<BookItem> addBackendBookToReadingList({
-    required String olid,
-  }) async {
+  Future<BookItem> addBackendBookToReadingList({required String olid}) async {
     final url = _backendApiUrl.trim();
     if (url.isEmpty) {
-      throw const BackendApiException('Set a backend API URL in Settings first.');
+      throw const BackendApiException(
+        'Set a backend API URL in Settings first.',
+      );
     }
     if (_backendPassword.trim().isEmpty) {
-      throw const BackendApiException('Set the backend admin password in Settings first.');
+      throw const BackendApiException(
+        'Set the backend admin password in Settings first.',
+      );
     }
 
     final added = await _backendApi.addBookFromOpenLibrary(
@@ -323,7 +350,9 @@ class AppController extends ChangeNotifier {
   Future<BackendReloadResult> refreshFromBackendIfChanged() async {
     final url = _backendApiUrl.trim();
     if (url.isEmpty) {
-      throw const BackendApiException('Set a backend API URL in Settings first.');
+      throw const BackendApiException(
+        'Set a backend API URL in Settings first.',
+      );
     }
 
     final fetched = await _backendApi.fetchAllBooks(url);
@@ -339,7 +368,10 @@ class AppController extends ChangeNotifier {
         lastBackendSyncAtIso: _lastBackendSyncAtIso,
         clearLastBackendSyncAt: _lastBackendSyncAtIso == null,
       );
-      return const BackendReloadResult(bookCount: 0, message: 'No changes found on backend.');
+      return const BackendReloadResult(
+        bookCount: 0,
+        message: 'No changes found on backend.',
+      );
     }
 
     return _applyFetchedBooks(
@@ -354,12 +386,16 @@ class AppController extends ChangeNotifier {
   }) async {
     final url = _backendApiUrl.trim();
     if (url.isEmpty) {
-      throw const BackendApiException('Set a backend API URL in Settings first.');
+      throw const BackendApiException(
+        'Set a backend API URL in Settings first.',
+      );
     }
 
     _setBackendBusy(
       true,
-      message: userInitiated ? 'Refreshing from backend...' : 'Syncing cached backend data...',
+      message: userInitiated
+          ? 'Refreshing from backend...'
+          : 'Syncing cached backend data...',
     );
 
     try {
@@ -368,7 +404,9 @@ class AppController extends ChangeNotifier {
       _setBackendBusy(false, message: result.message);
       return result;
     } catch (e) {
-      final message = e is BackendApiException ? e.message : 'Backend refresh failed.';
+      final message = e is BackendApiException
+          ? e.message
+          : 'Backend refresh failed.';
       _isBackendBusy = false;
       _lastBackendStatusMessage = message;
       notifyListeners();
@@ -413,7 +451,8 @@ class AppController extends ChangeNotifier {
   }
 
   bool _canPushBookUpdateToBackend(BookItem book) {
-    if (_backendApiUrl.trim().isEmpty || _backendPassword.trim().isEmpty) return false;
+    if (_backendApiUrl.trim().isEmpty || _backendPassword.trim().isEmpty)
+      return false;
     final id = book.id.trim().toUpperCase();
     return id.startsWith('OL');
   }
@@ -446,7 +485,8 @@ class AppController extends ChangeNotifier {
 
     return BackendReloadResult(
       bookCount: fetched.length,
-      message: messageOverride ??
+      message:
+          messageOverride ??
           'Loaded ${fetched.length} book${fetched.length == 1 ? '' : 's'} from backend.',
     );
   }

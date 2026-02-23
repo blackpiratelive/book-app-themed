@@ -17,7 +17,7 @@ It summarizes what is currently implemented, how the app is structured, and the 
 
 Main entry and app shell:
 - `lib/main.dart`: bootstraps app, initializes storage-backed controller
-- `lib/app.dart`: `CupertinoApp` wrapper, listens to `AppController` for theme updates
+- `lib/app.dart`: `CupertinoApp` wrapper, listens to `AppController` for theme updates and routes first-run users into onboarding
 
 Domain model:
 - `lib/models/book.dart`
@@ -32,6 +32,7 @@ State and persistence:
 - `lib/services/backend_api_service.dart`: backend HTTP client (`/api/public`, `/api/books`) + server-row mapping
 
 Pages:
+- `lib/pages/first_run_intro_page.dart` (first-open onboarding / intro tutorial)
 - `lib/pages/home_page.dart`
 - `lib/pages/book_details_page.dart`
 - `lib/pages/book_editor_page.dart`
@@ -249,6 +250,7 @@ Implemented in `lib/services/app_storage_service.dart`.
 Stored using `shared_preferences`:
 - Books list
 - Dark mode flag
+- First-run onboarding completion flag
 - Backend API URL
 - Backend password
 - Backend cache primed flag
@@ -259,6 +261,7 @@ Keys:
 - Books (current): `book_items_v2`
 - Books (legacy read fallback): `book_items_v1`
 - Dark mode: `dark_mode_enabled_v1`
+- First-run onboarding seen: `has_seen_onboarding_v1`
 - Backend API URL: `backend_api_url_v1`
 - Backend password: `backend_password_v1`
 - Backend cache primed: `backend_cache_primed_v1`
@@ -282,6 +285,24 @@ Status model is now 4-state:
 Filtering behavior:
 - Home page shows books only for selected shelf
 - Shelf selection is stored in controller runtime state (not currently persisted)
+
+### 13.5 First-Run Onboarding / Intro Tutorial
+
+Implemented in:
+- `lib/pages/first_run_intro_page.dart`
+- `lib/app.dart`
+- `lib/state/app_controller.dart`
+- `lib/services/app_storage_service.dart`
+
+Behavior:
+- On the very first open after install (before onboarding flag is saved), app shows a swipeable Cupertino intro/tutorial instead of Home.
+- Tutorial explains:
+  - shelves + bottom shelf bar
+  - add flow (manual vs API search)
+  - details/progress/highlights/edit flow
+  - backend refresh, stats, and settings
+- `Skip` and `Get Started` both mark onboarding as seen and persist it via `shared_preferences`.
+- After completion, app rebuilds into the normal `HomePage`.
 
 ### 14. Backend Sync + Caching Behavior
 
