@@ -13,7 +13,7 @@ class BookTrackerApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CupertinoApp(
+    return const CupertinoApp(
       debugShowCheckedModeBanner: false,
       title: 'Books',
       theme: const CupertinoThemeData(
@@ -442,7 +442,7 @@ class _BookCard extends StatelessWidget {
                   ),
                   CupertinoButton(
                     padding: EdgeInsets.zero,
-                    minSize: 28,
+                    minimumSize: 28,
                     onPressed: onToggleRead,
                     child: Icon(
                       book.isRead
@@ -489,7 +489,7 @@ class _BookCard extends StatelessWidget {
                 children: <Widget>[
                   CupertinoButton(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    minSize: 28,
+                    minimumSize: 28,
                     color: const Color(0xFFECE7D9),
                     borderRadius: BorderRadius.circular(18),
                     onPressed: onEdit,
@@ -501,7 +501,7 @@ class _BookCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   CupertinoButton(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    minSize: 28,
+                    minimumSize: 28,
                     color: const Color(0xFFFFE4E1),
                     borderRadius: BorderRadius.circular(18),
                     onPressed: onDelete,
@@ -628,13 +628,13 @@ class _BookEditorPageState extends State<BookEditorPage> {
         middle: Text(isEditing ? 'Edit Book' : 'Add Book'),
         leading: CupertinoButton(
           padding: EdgeInsets.zero,
-          minSize: 28,
+          minimumSize: 28,
           onPressed: () => Navigator.of(context).maybePop(),
           child: const Text('Cancel'),
         ),
         trailing: CupertinoButton(
           padding: EdgeInsets.zero,
-          minSize: 28,
+          minimumSize: 28,
           onPressed: _canSave ? _save : null,
           child: const Text('Save'),
         ),
@@ -648,7 +648,7 @@ class _BookEditorPageState extends State<BookEditorPage> {
               title: 'Details',
               child: Column(
                 children: <Widget>[
-                  _FieldLabel(label: 'Title'),
+                  const _FieldLabel(label: 'Title'),
                   CupertinoTextField(
                     controller: _titleController,
                     placeholder: 'Book title',
@@ -657,7 +657,7 @@ class _BookEditorPageState extends State<BookEditorPage> {
                     textCapitalization: TextCapitalization.words,
                   ),
                   const SizedBox(height: 10),
-                  _FieldLabel(label: 'Author'),
+                  const _FieldLabel(label: 'Author'),
                   CupertinoTextField(
                     controller: _authorController,
                     placeholder: 'Author name',
@@ -666,7 +666,7 @@ class _BookEditorPageState extends State<BookEditorPage> {
                     textCapitalization: TextCapitalization.words,
                   ),
                   const SizedBox(height: 10),
-                  _FieldLabel(label: 'Notes'),
+                  const _FieldLabel(label: 'Notes'),
                   CupertinoTextField(
                     controller: _notesController,
                     placeholder: 'Why you want to read it / notes',
@@ -710,7 +710,7 @@ class _BookEditorPageState extends State<BookEditorPage> {
                       final active = star <= _rating;
                       return CupertinoButton(
                         padding: const EdgeInsets.only(right: 2),
-                        minSize: 32,
+                        minimumSize: 32,
                         onPressed: () => setState(() => _rating = active && _rating == star ? star - 1 : star),
                         child: Icon(
                           active ? CupertinoIcons.star_fill : CupertinoIcons.star,
@@ -730,7 +730,7 @@ class _BookEditorPageState extends State<BookEditorPage> {
   }
 }
 
-final BoxDecoration _fieldDecoration = BoxDecoration(
+final BoxDecoration _fieldDecoration = const BoxDecoration(
   color: Color(0xFFFCFBF7),
   borderRadius: BorderRadius.all(Radius.circular(12)),
   border: Border.fromBorderSide(BorderSide(color: Color(0xFFE5DECB))),
