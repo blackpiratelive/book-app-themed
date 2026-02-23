@@ -1,6 +1,7 @@
 import 'package:book_app_themed/models/book.dart';
 import 'package:book_app_themed/pages/book_details_page.dart';
 import 'package:book_app_themed/pages/book_editor_page.dart';
+import 'package:book_app_themed/pages/book_search_page.dart';
 import 'package:book_app_themed/pages/settings_page.dart';
 import 'package:book_app_themed/state/app_controller.dart';
 import 'package:book_app_themed/widgets/book_card.dart';
@@ -12,14 +13,53 @@ class HomePage extends StatelessWidget {
 
   final AppController controller;
 
-  Future<void> _openAddBook(BuildContext context) async {
-    final draft = await Navigator.of(context).push<BookDraft>(
-      CupertinoPageRoute<BookDraft>(
-        builder: (_) => const BookEditorPage(),
-      ),
+  Future<void> _openAddMenu(BuildContext context) async {
+    final navigator = Navigator.of(context);
+    final choice = await showCupertinoModalPopup<_AddBookChoice>(
+      context: context,
+      builder: (sheetContext) {
+        return CupertinoActionSheet(
+          title: const Text('Add Book'),
+          message: const Text('Choose how you want to add a book.'),
+          actions: <Widget>[
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(sheetContext).pop(_AddBookChoice.search),
+              child: const Text('Search Library (API)'),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () => Navigator.of(sheetContext).pop(_AddBookChoice.manual),
+              child: const Text('Add Manually'),
+            ),
+          ],
+          cancelButton: CupertinoActionSheetAction(
+            onPressed: () => Navigator.of(sheetContext).pop(),
+            isDefaultAction: true,
+            child: const Text('Cancel'),
+          ),
+        );
+      },
     );
-    if (draft == null) return;
-    await controller.addBook(draft);
+
+    switch (choice) {
+      case _AddBookChoice.search:
+        await navigator.push<void>(
+          CupertinoPageRoute<void>(
+            builder: (_) => BookSearchPage(controller: controller),
+          ),
+        );
+        return;
+      case _AddBookChoice.manual:
+        final draft = await navigator.push<BookDraft>(
+          CupertinoPageRoute<BookDraft>(
+            builder: (_) => const BookEditorPage(),
+          ),
+        );
+        if (draft == null) return;
+        await controller.addBook(draft);
+        return;
+      case null:
+        return;
+    }
   }
 
   Future<void> _openSettings(BuildContext context) async {
@@ -87,7 +127,7 @@ class HomePage extends StatelessWidget {
                       _CircleActionButton(
                         icon: CupertinoIcons.add,
                         iconSize: 28,
-                        onPressed: () => _openAddBook(context),
+                        onPressed: () => _openAddMenu(context),
                         isPrimary: true,
                       ),
                     ],
@@ -99,7 +139,7 @@ class HomePage extends StatelessWidget {
                       : visibleBooks.isEmpty
                           ? _EmptyShelf(
                               status: controller.selectedShelf,
-                              onAddBook: () => _openAddBook(context),
+                              onAddBook: () => _openAddMenu(context),
                             )
                           : ListView.builder(
                               padding: const EdgeInsets.fromLTRB(16, 4, 16, 116),
@@ -129,6 +169,11 @@ class HomePage extends StatelessWidget {
       ),
     );
   }
+}
+
+enum _AddBookChoice {
+  search,
+  manual,
 }
 
 class _CircleActionButton extends StatelessWidget {
@@ -230,4 +275,3 @@ class _EmptyShelf extends StatelessWidget {
     );
   }
 }
-

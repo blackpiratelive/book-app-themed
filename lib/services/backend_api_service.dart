@@ -4,6 +4,29 @@ import 'dart:io';
 
 import 'package:book_app_themed/models/book.dart';
 
+class BackendSearchBookResult {
+  const BackendSearchBookResult({
+    required this.olid,
+    required this.title,
+    required this.authors,
+    required this.firstPublishYear,
+    required this.coverId,
+  });
+
+  final String olid;
+  final String title;
+  final List<String> authors;
+  final int? firstPublishYear;
+  final int? coverId;
+
+  String get authorText => authors.isEmpty ? 'Unknown author' : authors.join(', ');
+
+  String get coverUrl {
+    if (coverId == null) return '';
+    return 'https://covers.openlibrary.org/b/id/$coverId-M.jpg';
+  }
+}
+
 class BackendConnectionTestResult {
   const BackendConnectionTestResult({
     required this.readApiReachable,
@@ -47,6 +70,84 @@ class BackendApiService {
       books.add(_mapServerBook(Map<String, dynamic>.from(item), now, i));
     }
     return books;
+  }
+
+  Future<List<BackendSearchBookResult>> searchBooks({
+    required String baseUrl,
+    required String query,
+  }) async {
+    final q = query.trim();
+    if (q.isEmpty) return const <BackendSearchBookResult>[];
+
+    final response = await _sendJsonRequest(
+      method: 'GET',
+      uri: _buildUri(baseUrl, '/api/search', <String, String>{'q': q}),
+      responseTimeout: const Duration(seconds: 20),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw BackendApiException(
+        _extractErrorMessage(response.body) ??
+            'Search failed (${response.statusCode})',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! List) {
+      throw const BackendApiException('Unexpected response format from /api/search');
+    }
+
+    return decoded
+        .whereType<Map>()
+        .map((item) => _mapSearchResult(Map<String, dynamic>.from(item)))
+        .where((item) => item.olid.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  Future<BookItem> addBookFromOpenLibrary({
+    required String baseUrl,
+    required String password,
+    required String olid,
+    String shelf = 'watchlist',
+  }) async {
+    if (password.trim().isEmpty) {
+      throw const BackendApiException('Set the backend admin password in Settings first.');
+    }
+    if (olid.trim().isEmpty) {
+      throw const BackendApiException('Missing OpenLibrary work ID.');
+    }
+
+    final response = await _sendJsonRequest(
+      method: 'POST',
+      uri: _buildUri(baseUrl, '/api/books'),
+      bodyJson: <String, dynamic>{
+        'password': password,
+        'action': 'add',
+        'data': <String, dynamic>{
+          'olid': olid.trim(),
+          'shelf': shelf,
+        },
+      },
+      responseTimeout: const Duration(seconds: 45),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw BackendApiException(
+        _extractErrorMessage(response.body) ??
+            'Add book failed (${response.statusCode})',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map) {
+      throw const BackendApiException('Unexpected response format when adding a book.');
+    }
+    final book = decoded['book'];
+    if (book is! Map) {
+      throw const BackendApiException('Add book response did not include a book payload.');
+    }
+
+    return _mapServerBook(Map<String, dynamic>.from(book), DateTime.now().toUtc(), 0);
   }
 
   Future<BackendConnectionTestResult> testConnection({
@@ -124,21 +225,23 @@ class BackendApiService {
     required String method,
     required Uri uri,
     Map<String, dynamic>? bodyJson,
+    Duration requestTimeout = const Duration(seconds: 10),
+    Duration responseTimeout = const Duration(seconds: 12),
   }) async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
     try {
       final request = await client
           .openUrl(method, uri)
-          .timeout(const Duration(seconds: 10));
+          .timeout(requestTimeout);
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
       if (bodyJson != null) {
         request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
         request.write(jsonEncode(bodyJson));
       }
 
-      final response = await request.close().timeout(const Duration(seconds: 12));
+      final response = await request.close().timeout(responseTimeout);
       final body = await utf8.decodeStream(response).timeout(
-            const Duration(seconds: 12),
+            responseTimeout,
           );
       return _HttpJsonResponse(statusCode: response.statusCode, body: body);
     } on TimeoutException {
@@ -152,6 +255,26 @@ class BackendApiService {
     } finally {
       client.close(force: true);
     }
+  }
+
+  BackendSearchBookResult _mapSearchResult(Map<String, dynamic> row) {
+    final authorNames = <String>[];
+    final rawAuthors = row['author_name'];
+    if (rawAuthors is List) {
+      for (final item in rawAuthors) {
+        if (item is String && item.trim().isNotEmpty) {
+          authorNames.add(item.trim());
+        }
+      }
+    }
+
+    return BackendSearchBookResult(
+      olid: (row['key'] as String? ?? '').trim(),
+      title: (row['title'] as String? ?? '').trim(),
+      authors: authorNames,
+      firstPublishYear: _asInt(row['first_publish_year']),
+      coverId: _asInt(row['cover_i']),
+    );
   }
 
   Uri _buildUri(

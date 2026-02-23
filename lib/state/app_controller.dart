@@ -167,6 +167,45 @@ class AppController extends ChangeNotifier {
     }
   }
 
+  Future<List<BackendSearchBookResult>> searchBackendBooks(String query) async {
+    final url = _backendApiUrl.trim();
+    if (url.isEmpty) {
+      throw const BackendApiException('Set a backend API URL in Settings first.');
+    }
+    return _backendApi.searchBooks(baseUrl: url, query: query);
+  }
+
+  Future<BookItem> addBackendBookToReadingList({
+    required String olid,
+  }) async {
+    final url = _backendApiUrl.trim();
+    if (url.isEmpty) {
+      throw const BackendApiException('Set a backend API URL in Settings first.');
+    }
+    if (_backendPassword.trim().isEmpty) {
+      throw const BackendApiException('Set the backend admin password in Settings first.');
+    }
+
+    final added = await _backendApi.addBookFromOpenLibrary(
+      baseUrl: url,
+      password: _backendPassword,
+      olid: olid,
+      shelf: 'watchlist',
+    );
+
+    final existingIndex = _books.indexWhere((b) => b.id == added.id);
+    if (existingIndex >= 0) {
+      _books[existingIndex] = added;
+    } else {
+      _books.insert(0, added);
+    }
+    _selectedShelf = BookStatus.readingList;
+    _lastBackendStatusMessage = 'Added "${added.title}" to Reading List.';
+    notifyListeners();
+    await _storage.saveBooks(_books);
+    return added;
+  }
+
   Future<BackendReloadResult> forceReloadFromBackend({
     bool userInitiated = true,
   }) async {

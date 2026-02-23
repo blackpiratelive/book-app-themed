@@ -33,6 +33,7 @@ Pages:
 - `lib/pages/home_page.dart`
 - `lib/pages/book_details_page.dart`
 - `lib/pages/book_editor_page.dart`
+- `lib/pages/book_search_page.dart` (backend search + add to Reading List)
 - `lib/pages/settings_page.dart`
 
 Shared widgets:
@@ -166,7 +167,25 @@ Validation behavior:
 - Save is enabled when title is non-empty
 - Numeric parsing for page count is tolerant (`int.tryParse`, defaults to `0`)
 
-### 8. Settings Page
+### 8. Add Flow: Manual or Backend Search
+
+Implemented in:
+- `lib/pages/home_page.dart`
+- `lib/pages/book_search_page.dart`
+- `lib/state/app_controller.dart`
+- `lib/services/backend_api_service.dart`
+
+Features:
+- Tapping the home `+` button now shows an action sheet:
+  - `Search Library (API)`
+  - `Add Manually`
+- Backend search uses `/api/search`
+- Search results show an `Add to Reading List` button per result
+- Adding via search uses `/api/books` `POST` with `action: "add"` and `shelf: "watchlist"`
+- Search/add flows show loading/status messages because responses may take time
+- Successful add inserts/updates the local cached list immediately and switches shelf to `Reading List`
+
+### 9. Settings Page
 
 Implemented in `lib/pages/settings_page.dart`.
 
@@ -180,7 +199,7 @@ Features:
   - Backend cache / local changes / last sync status rows
   - Confirmation dialog before force reload if local changes exist
 
-### 9. Dark Mode
+### 10. Dark Mode
 
 Implemented via `AppController` and `shared_preferences`.
 
@@ -189,7 +208,7 @@ Features:
 - Persists across app launches
 - `CupertinoApp` theme updates reactively via `AnimatedBuilder`
 
-### 10. Local Persistence (Books + Theme + Backend Sync Metadata)
+### 11. Local Persistence (Books + Theme + Backend Sync Metadata)
 
 Implemented in `lib/services/app_storage_service.dart`.
 
@@ -216,7 +235,7 @@ Backward compatibility:
 - Loader attempts `book_items_v2`, then falls back to `book_items_v1`
 - Legacy `isRead` boolean is mapped into new `BookStatus`
 
-### 11. Book Status and Filtering Model
+### 12. Book Status and Filtering Model
 
 Implemented in `lib/models/book.dart` and `lib/state/app_controller.dart`.
 
@@ -229,7 +248,7 @@ Filtering behavior:
 - Home page shows books only for selected shelf
 - Shelf selection is stored in controller runtime state (not currently persisted)
 
-### 12. Backend Read Sync (API -> Local Cache)
+### 13. Backend Read Sync (API -> Local Cache)
 
 Implemented in:
 - `lib/services/backend_api_service.dart`
@@ -251,7 +270,10 @@ Important:
 - Current implementation is read-sync only (pull from backend)
 - Local book CRUD is not pushed back to backend yet
 
-### 13. CI: Android APK Build in GitHub Actions
+Exception:
+- Backend search add (`/api/books` `action:add`) is now wired from the app for adding books to the Reading List.
+
+### 14. CI: Android APK Build in GitHub Actions
 
 Workflow:
 - `.github/workflows/android-build.yml`
