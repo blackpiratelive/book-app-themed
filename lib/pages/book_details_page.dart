@@ -6,6 +6,7 @@ import 'package:book_app_themed/utils/date_formatters.dart';
 import 'package:book_app_themed/widgets/book_cover.dart';
 import 'package:book_app_themed/widgets/section_card.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 
 class BookDetailsPage extends StatelessWidget {
   const BookDetailsPage({
@@ -73,6 +74,142 @@ class BookDetailsPage extends StatelessWidget {
     await controller.deleteBook(book.id);
     if (context.mounted) {
       Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _copyHighlight(String highlight) async {
+    final value = highlight.trim();
+    if (value.isEmpty) return;
+    await Clipboard.setData(ClipboardData(text: value));
+  }
+
+  Future<String?> _promptForHighlight(BuildContext context) async {
+    final inputController = TextEditingController();
+    try {
+      final result = await showCupertinoModalPopup<String>(
+        context: context,
+        builder: (sheetContext) {
+          return StatefulBuilder(
+            builder: (context, setSheetState) {
+              final canAdd = inputController.text.trim().isNotEmpty;
+              final background = CupertinoColors.systemGroupedBackground.resolveFrom(context);
+              final border = CupertinoColors.separator.resolveFrom(context);
+
+              return SafeArea(
+                top: false,
+                child: Container(
+                  height: 330,
+                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                  decoration: BoxDecoration(
+                    color: background,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                    border: Border(top: BorderSide(color: border.withValues(alpha: 0.45))),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Row(
+                        children: <Widget>[
+                          CupertinoButton(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: const Size(0, 0),
+                            onPressed: () => Navigator.of(sheetContext).pop(),
+                            child: const Text('Cancel'),
+                          ),
+                          const Spacer(),
+                          Text(
+                            'Add Highlight',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: CupertinoColors.label.resolveFrom(context),
+                            ),
+                          ),
+                          const Spacer(),
+                          CupertinoButton(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            minimumSize: const Size(0, 0),
+                            onPressed: canAdd
+                                ? () => Navigator.of(sheetContext).pop(inputController.text.trim())
+                                : null,
+                            child: const Text('Add'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Saved to this book and synced using the API update endpoint.',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Expanded(
+                        child: CupertinoTextField(
+                          controller: inputController,
+                          placeholder: 'Paste or type a highlight...',
+                          maxLines: null,
+                          expands: true,
+                          keyboardType: TextInputType.multiline,
+                          textAlignVertical: TextAlignVertical.top,
+                          textCapitalization: TextCapitalization.sentences,
+                          onChanged: (_) => setSheetState(() {}),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: CupertinoColors.secondarySystemGroupedBackground.resolveFrom(
+                              context,
+                            ),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: border.withValues(alpha: 0.35),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      );
+      final cleaned = result?.trim();
+      if (cleaned == null || cleaned.isEmpty) return null;
+      return cleaned;
+    } finally {
+      inputController.dispose();
+    }
+  }
+
+  Future<void> _addHighlight(BuildContext context, BookItem book) async {
+    final newHighlight = await _promptForHighlight(context);
+    if (newHighlight == null) return;
+
+    final current = controller.bookById(book.id);
+    if (current == null) return;
+
+    final updatedHighlights = <String>[newHighlight, ...current.highlights];
+    try {
+      await controller.updateBookHighlights(book.id, updatedHighlights);
+    } on BackendApiException catch (e) {
+      if (!context.mounted) return;
+      await showCupertinoDialog<void>(
+        context: context,
+        builder: (dialogContext) => CupertinoAlertDialog(
+          title: const Text('Saved Locally'),
+          content: Text(
+            'The highlight was saved locally, but syncing it to the backend failed.\n\n${e.message}',
+          ),
+          actions: <Widget>[
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
     }
   }
 
@@ -195,7 +332,11 @@ class BookDetailsPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 SectionCard(
                   title: 'Highlights',
-                  child: _HighlightsList(highlights: book.highlights),
+                  child: _HighlightsList(
+                    highlights: book.highlights,
+                    onAddHighlight: () => _addHighlight(context, book),
+                    onCopyHighlight: _copyHighlight,
+                  ),
                 ),
               ],
             ),
@@ -333,31 +474,37 @@ class _DetailsGrid extends StatelessWidget {
         icon: book.medium.icon,
         label: 'Medium',
         value: book.medium.label,
+        tint: CupertinoColors.activeBlue,
       ),
       _DetailTileData(
         icon: CupertinoIcons.percent,
         label: 'Progress',
         value: '${book.progressPercent}%',
+        tint: CupertinoColors.systemTeal,
       ),
       _DetailTileData(
         icon: CupertinoIcons.book,
         label: 'Pages',
         value: book.pageCount > 0 ? '${book.pageCount}' : 'Not set',
+        tint: CupertinoColors.systemOrange,
       ),
       _DetailTileData(
         icon: CupertinoIcons.calendar,
         label: 'Start Date',
         value: formatDateShort(book.startDateIso),
+        tint: CupertinoColors.systemIndigo,
       ),
       _DetailTileData(
         icon: CupertinoIcons.calendar_today,
         label: 'End Date',
         value: formatDateShort(book.endDateIso),
+        tint: CupertinoColors.systemPurple,
       ),
       _DetailTileData(
         icon: CupertinoIcons.star_fill,
         label: 'Rating',
         value: book.rating > 0 ? '${book.rating}/5' : 'Not rated',
+        tint: CupertinoColors.systemYellow,
       ),
     ];
 
@@ -383,66 +530,216 @@ class _DetailsGrid extends StatelessWidget {
 }
 
 class _HighlightsList extends StatelessWidget {
-  const _HighlightsList({required this.highlights});
+  const _HighlightsList({
+    required this.highlights,
+    required this.onAddHighlight,
+    required this.onCopyHighlight,
+  });
 
   final List<String> highlights;
+  final Future<void> Function() onAddHighlight;
+  final Future<void> Function(String text) onCopyHighlight;
 
   @override
   Widget build(BuildContext context) {
-    if (highlights.isEmpty) {
-      return Text(
-        'No highlights for this book yet.',
-        style: TextStyle(
-          fontSize: 14,
-          color: CupertinoColors.secondaryLabel.resolveFrom(context),
-        ),
-      );
-    }
-
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
     final label = CupertinoColors.label.resolveFrom(context);
     final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
-    return Column(
-      children: List<Widget>.generate(highlights.length, (index) {
-        final isLast = index == highlights.length - 1;
-        return Padding(
-          padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
-          child: Container(
+    final border = CupertinoColors.separator.resolveFrom(context);
+    final accent = CupertinoColors.activeBlue.resolveFrom(context);
+
+    final header = Row(
+      children: <Widget>[
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: accent.withValues(alpha: isDark ? 0.18 : 0.10),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: accent.withValues(alpha: isDark ? 0.35 : 0.22)),
+          ),
+          child: Text(
+            '${highlights.length} ${highlights.length == 1 ? 'highlight' : 'highlights'}',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: accent,
+            ),
+          ),
+        ),
+        const Spacer(),
+        CupertinoButton(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          minimumSize: const Size(0, 0),
+          color: accent.withValues(alpha: isDark ? 0.20 : 0.12),
+          borderRadius: BorderRadius.circular(10),
+          onPressed: () => onAddHighlight(),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(CupertinoIcons.add_circled_solid, size: 15, color: accent),
+              const SizedBox(width: 6),
+              Text(
+                'Add',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: accent,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    if (highlights.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          header,
+          const SizedBox(height: 10),
+          Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: CupertinoColors.separator.resolveFrom(context).withValues(alpha: 0.25),
-              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: border.withValues(alpha: 0.28)),
             ),
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Icon(
-                    CupertinoIcons.quote_bubble,
-                    size: 14,
-                    color: secondary,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    highlights[index],
-                    style: TextStyle(
-                      fontSize: 13.5,
-                      height: 1.3,
-                      color: label,
+                Row(
+                  children: <Widget>[
+                    Icon(CupertinoIcons.quote_bubble, size: 16, color: secondary),
+                    const SizedBox(width: 8),
+                    Text(
+                      'No highlights yet',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: label,
+                      ),
                     ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Use Add to store a highlight for this book.',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    height: 1.35,
+                    color: secondary,
                   ),
                 ),
               ],
             ),
           ),
-        );
-      }),
+        ],
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        header,
+        const SizedBox(height: 10),
+        ...List<Widget>.generate(highlights.length, (index) {
+          final isLast = index == highlights.length - 1;
+          final highlight = highlights[index];
+          final stripe = index.isEven
+              ? CupertinoColors.systemBlue.resolveFrom(context)
+              : CupertinoColors.systemIndigo.resolveFrom(context);
+          final baseFill = CupertinoColors.secondarySystemGroupedBackground.resolveFrom(context);
+          final cardFill = Color.alphaBlend(
+            stripe.withValues(alpha: isDark ? 0.10 : 0.05),
+            baseFill,
+          );
+
+          return Padding(
+            padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: cardFill,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: border.withValues(alpha: 0.28)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Container(
+                    width: 4,
+                    margin: const EdgeInsets.only(top: 2, right: 10),
+                    decoration: BoxDecoration(
+                      color: stripe.withValues(alpha: isDark ? 0.85 : 0.95),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            Icon(
+                              CupertinoIcons.quote_bubble,
+                              size: 14,
+                              color: stripe,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Highlight ${index + 1}',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w700,
+                                color: stripe,
+                              ),
+                            ),
+                            const Spacer(),
+                            CupertinoButton(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                              minimumSize: const Size(0, 0),
+                              color: stripe.withValues(alpha: isDark ? 0.16 : 0.10),
+                              borderRadius: BorderRadius.circular(9),
+                              onPressed: () => onCopyHighlight(highlight),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: <Widget>[
+                                  Icon(CupertinoIcons.doc_on_doc, size: 13, color: stripe),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    'Copy',
+                                    style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: stripe,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        SelectableText(
+                          highlight,
+                          style: TextStyle(
+                            fontSize: 14.5,
+                            height: 1.45,
+                            color: label,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }),
+      ],
     );
   }
 }
@@ -452,11 +749,13 @@ class _DetailTileData {
     required this.icon,
     required this.label,
     required this.value,
+    required this.tint,
   });
 
   final IconData icon;
   final String label;
   final String value;
+  final CupertinoDynamicColor tint;
 }
 
 class _DetailTile extends StatelessWidget {
@@ -466,13 +765,23 @@ class _DetailTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tint = tile.tint.resolveFrom(context);
+    final border = CupertinoColors.separator.resolveFrom(context);
+    final baseFill = CupertinoColors.tertiarySystemFill.resolveFrom(context);
+    final tileFill = Color.alphaBlend(
+      tint.withValues(
+        alpha: CupertinoTheme.of(context).brightness == Brightness.dark ? 0.12 : 0.06,
+      ),
+      baseFill,
+    );
+
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+        color: tileFill,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: CupertinoColors.separator.resolveFrom(context).withValues(alpha: 0.25),
+          color: border.withValues(alpha: 0.22),
         ),
       ),
       child: Column(
@@ -484,14 +793,15 @@ class _DetailTile extends StatelessWidget {
                 width: 24,
                 height: 24,
                 decoration: BoxDecoration(
-                  color: CupertinoColors.systemBackground.resolveFrom(context),
+                  color: tint.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(7),
+                  border: Border.all(color: tint.withValues(alpha: 0.16)),
                 ),
                 alignment: Alignment.center,
                 child: Icon(
                   tile.icon,
                   size: 13,
-                  color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                  color: tint,
                 ),
               ),
               const SizedBox(width: 8),
@@ -500,7 +810,8 @@ class _DetailTile extends StatelessWidget {
                   tile.label,
                   style: TextStyle(
                     fontSize: 11.5,
-                    color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                    fontWeight: FontWeight.w700,
+                    color: tint.withValues(alpha: 0.95),
                   ),
                 ),
               ),
@@ -546,6 +857,12 @@ class _DetailTile extends StatelessWidget {
         background: isDark ? const Color(0xFF3A2E12) : const Color(0xFFF7EFD8),
         border: isDark ? const Color(0xFF7C6420) : const Color(0xFFE7D091),
         foreground: isDark ? const Color(0xFFF2CF67) : const Color(0xFF9A6A00),
+      );
+    case BookStatus.abandoned:
+      return (
+        background: isDark ? const Color(0xFF3A1715) : const Color(0xFFFFECE9),
+        border: isDark ? const Color(0xFF8A3C35) : const Color(0xFFF5B0A8),
+        foreground: isDark ? const Color(0xFFFF9E91) : const Color(0xFFD24434),
       );
   }
 }

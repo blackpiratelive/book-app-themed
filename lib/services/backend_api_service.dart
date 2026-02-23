@@ -196,6 +196,44 @@ class BackendApiService {
     }
   }
 
+  Future<void> updateBookHighlights({
+    required String baseUrl,
+    required String password,
+    required String bookId,
+    required List<String> highlights,
+  }) async {
+    if (password.trim().isEmpty) {
+      throw const BackendApiException('Set the backend admin password in Settings first.');
+    }
+
+    final cleanedHighlights = highlights
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+
+    final response = await _sendJsonRequest(
+      method: 'POST',
+      uri: _buildUri(baseUrl, '/api/books'),
+      bodyJson: <String, dynamic>{
+        'password': password,
+        'action': 'update',
+        'data': <String, dynamic>{
+          'id': bookId,
+          'highlights': cleanedHighlights,
+          'hasHighlights': cleanedHighlights.isEmpty ? 0 : 1,
+        },
+      },
+      responseTimeout: const Duration(seconds: 25),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw BackendApiException(
+        _extractErrorMessage(response.body) ??
+            'Highlight update failed (${response.statusCode})',
+      );
+    }
+  }
+
   Future<BackendConnectionTestResult> testConnection({
     required String baseUrl,
     required String password,
@@ -347,7 +385,7 @@ class BackendApiService {
     final highlights = _highlightsList(row['highlights']);
     final progress = _asInt(row['readingProgress'])?.clamp(0, 100).toInt() ?? 0;
     final pageCount = _asInt(row['pageCount'])?.clamp(0, 100000).toInt() ?? 0;
-    final status = _mapShelf(row['shelf'], progress);
+    final status = _mapShelf(row['shelf']);
     final createdAt = _bestCreatedAt(row, nowUtc, index);
     final startedOn = _dateString(row['startedOn']);
     final finishedOn = _dateString(row['finishedOn']);
@@ -426,7 +464,7 @@ class BackendApiService {
     return raw;
   }
 
-  BookStatus _mapShelf(dynamic raw, int progress) {
+  BookStatus _mapShelf(dynamic raw) {
     final value = (raw as String?)?.trim().toLowerCase() ?? '';
     switch (value) {
       case 'read':
@@ -436,7 +474,7 @@ class BackendApiService {
       case 'reading':
         return BookStatus.reading;
       case 'abandoned':
-        return progress > 0 ? BookStatus.reading : BookStatus.readingList;
+        return BookStatus.abandoned;
       case 'watchlist':
       default:
         return BookStatus.readingList;
@@ -451,6 +489,8 @@ class BackendApiService {
         return 'read';
       case BookStatus.readingList:
         return 'watchlist';
+      case BookStatus.abandoned:
+        return 'abandoned';
     }
   }
 

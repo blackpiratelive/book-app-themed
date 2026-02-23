@@ -166,6 +166,14 @@ class HomePage extends StatelessWidget {
                       ),
                       const SizedBox(width: 10),
                       _CircleActionButton(
+                        icon: CupertinoIcons.clear_circled_solid,
+                        iconSize: 20,
+                        onPressed: () => controller.setSelectedShelf(BookStatus.abandoned),
+                        isSelected: controller.selectedShelf == BookStatus.abandoned,
+                        tintColor: CupertinoColors.systemRed,
+                      ),
+                      const SizedBox(width: 10),
+                      _CircleActionButton(
                         icon: CupertinoIcons.add,
                         iconSize: 28,
                         onPressed: () => _openAddMenu(context),
@@ -244,21 +252,33 @@ class _CircleActionButton extends StatelessWidget {
     required this.iconSize,
     required this.onPressed,
     this.isPrimary = false,
+    this.isSelected = false,
+    this.tintColor,
   });
 
   final IconData icon;
   final double iconSize;
   final VoidCallback onPressed;
   final bool isPrimary;
+  final bool isSelected;
+  final Color? tintColor;
 
   @override
   Widget build(BuildContext context) {
+    final accent = CupertinoDynamicColor.resolve(
+      tintColor ?? CupertinoTheme.of(context).primaryColor,
+      context,
+    );
     final bg = isPrimary
         ? CupertinoColors.activeBlue
-        : CupertinoColors.tertiarySystemFill.resolveFrom(context);
+        : isSelected
+            ? accent.withValues(alpha: 0.18)
+            : CupertinoColors.tertiarySystemFill.resolveFrom(context);
     final fg = isPrimary
         ? CupertinoColors.white
-        : CupertinoColors.label.resolveFrom(context);
+        : isSelected
+            ? accent
+            : CupertinoColors.label.resolveFrom(context);
 
     return CupertinoButton(
       padding: EdgeInsets.zero,

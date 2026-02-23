@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 
-enum BookStatus { reading, read, readingList }
+enum BookStatus { reading, read, readingList, abandoned }
 
 extension BookStatusX on BookStatus {
   String get label {
@@ -11,6 +11,8 @@ extension BookStatusX on BookStatus {
         return 'Read';
       case BookStatus.readingList:
         return 'Reading List';
+      case BookStatus.abandoned:
+        return 'Abandoned';
     }
   }
 
@@ -22,6 +24,8 @@ extension BookStatusX on BookStatus {
         return 'read';
       case BookStatus.readingList:
         return 'reading_list';
+      case BookStatus.abandoned:
+        return 'abandoned';
     }
   }
 
@@ -33,6 +37,8 @@ extension BookStatusX on BookStatus {
         return CupertinoIcons.check_mark_circled_solid;
       case BookStatus.readingList:
         return CupertinoIcons.list_bullet;
+      case BookStatus.abandoned:
+        return CupertinoIcons.clear_circled_solid;
     }
   }
 
@@ -40,12 +46,17 @@ extension BookStatusX on BookStatus {
     final value = (raw as String?)?.trim().toLowerCase();
     switch (value) {
       case 'reading':
+      case 'currentlyreading':
+      case 'currently_reading':
         return BookStatus.reading;
       case 'read':
         return BookStatus.read;
+      case 'abandoned':
+        return BookStatus.abandoned;
       case 'reading_list':
       case 'readinglist':
       case 'list':
+      case 'watchlist':
         return BookStatus.readingList;
       default:
         if (legacyIsRead == true) return BookStatus.read;

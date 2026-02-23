@@ -158,6 +158,47 @@ class AppController extends ChangeNotifier {
     await _markLocalBookChanges();
   }
 
+  Future<void> updateBookHighlights(String bookId, List<String> highlights) async {
+    final index = _books.indexWhere((b) => b.id == bookId);
+    if (index < 0) return;
+
+    final cleanedHighlights = highlights
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+    final updated = _books[index].copyWith(highlights: cleanedHighlights);
+    _books[index] = updated;
+    notifyListeners();
+    await _storage.saveBooks(_books);
+
+    if (_canPushBookUpdateToBackend(updated)) {
+      try {
+        await _backendApi.updateBookHighlights(
+          baseUrl: _backendApiUrl.trim(),
+          password: _backendPassword,
+          bookId: updated.id,
+          highlights: updated.highlights,
+        );
+        _hasLocalBookChanges = false;
+        _lastBackendSyncAtIso = DateTime.now().toIso8601String();
+        _lastBackendStatusMessage = 'Updated highlights for "${updated.title}" on backend.';
+        notifyListeners();
+        await _storage.saveBackendSyncState(
+          backendCachePrimed: _backendCachePrimed,
+          hasLocalBookChanges: false,
+          lastBackendSyncAtIso: _lastBackendSyncAtIso,
+          clearLastBackendSyncAt: _lastBackendSyncAtIso == null,
+        );
+        return;
+      } on BackendApiException {
+        await _markLocalBookChanges();
+        rethrow;
+      }
+    }
+
+    await _markLocalBookChanges();
+  }
+
   BookItem? bookById(String id) {
     for (final book in _books) {
       if (book.id == id) return book;

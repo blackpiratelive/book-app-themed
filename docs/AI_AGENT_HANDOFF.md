@@ -23,7 +23,7 @@ Domain model:
 - `lib/models/book.dart`
   - `BookItem`
   - `BookDraft`
-  - `BookStatus` (`Reading`, `Read`, `Reading List`)
+  - `BookStatus` (`Reading`, `Read`, `Reading List`, `Abandoned`)
   - `ReadingMedium` (`Kindle`, `Paperback`, `Mobile`, `Laptop`)
 
 State and persistence:
@@ -67,6 +67,7 @@ Features:
 - Small brand label text (`BlackPirateX Book tracker`) under the heading
 - Top-right action buttons:
   - Settings button
+  - Abandoned shelf quick-access button (next to Settings)
   - Add (`+`) button (larger size per user request)
 - Shelf count subtitle (e.g. number of books in currently selected shelf)
 - Scrollable list of books
@@ -85,6 +86,9 @@ Features:
   - `Reading`
   - `Read`
   - `Reading List`
+
+Note:
+- `Abandoned` is intentionally not part of the floating bottom shelf bar; it is accessed from the dedicated header icon button.
 
 Note:
 - This was changed from a thin segmented control after UX feedback.
@@ -133,9 +137,12 @@ Features:
   - When status is `Reading`, this row shows a reading progress card with progress bar + percentage
   - Otherwise shows status badge
 - Side delete button in same row (per user request)
-- "More Details" section displayed as a 2-column grid
+- "More Details" section displayed as a 2-column grid with higher-contrast colorful icon/label accents (Cupertino-styled)
 - "Description" section (renamed from Notes in details page UI)
-- Highlights section (shows backend highlights for the selected book, or empty state text)
+- Highlights section redesigned for readability
+  - Quick `Add` highlight button (Cupertino sheet composer)
+  - Per-highlight `Copy` button
+  - Saves locally and syncs highlights to backend via `/api/books` `POST` `action: "update"` (`highlights`, `hasHighlights`)
 - Delete confirmation dialog
 
 Note:
@@ -157,6 +164,7 @@ Features:
   - Reading
   - Read
   - Reading List
+  - Abandoned
 - Progress slider (`0–100%`)
 - Rating selector (`0–5`)
 - Reading medium selector chips:
@@ -257,10 +265,11 @@ Backward compatibility:
 
 Implemented in `lib/models/book.dart` and `lib/state/app_controller.dart`.
 
-Status model is now 3-state:
+Status model is now 4-state:
 - `reading`
 - `read`
 - `reading_list`
+- `abandoned`
 
 Filtering behavior:
 - Home page shows books only for selected shelf
@@ -275,7 +284,9 @@ Implemented in:
 Behavior:
 - Reads from backend using `GET /api/books` (see `docs/API_DOCS.md`)
 - Maps backend row schema into local `BookItem` model
+- Preserves backend `abandoned` shelf mapping (no longer downgrades it to another local shelf)
 - Maps backend highlights into local `BookItem.highlights`
+- Can push highlight-only updates to backend using `/api/books` `POST` `action: "update"` with `highlights` + `hasHighlights`
 - Caches fetched books locally in existing books storage key
 - First install / first app open:
   - app uses prefilled backend URL (`https://notes.blackpiratex.com`) as the default controller backend URL

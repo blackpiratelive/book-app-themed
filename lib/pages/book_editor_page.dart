@@ -239,26 +239,17 @@ class _BookEditorPageState extends State<BookEditorPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  CupertinoSlidingSegmentedControl<BookStatus>(
-                    groupValue: _status,
-                    onValueChanged: (value) {
-                      if (value == null) return;
-                      setState(() => _status = value);
-                    },
-                    children: const <BookStatus, Widget>{
-                      BookStatus.reading: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                        child: Text('Reading', style: TextStyle(fontSize: 12)),
-                      ),
-                      BookStatus.read: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                        child: Text('Read', style: TextStyle(fontSize: 12)),
-                      ),
-                      BookStatus.readingList: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                        child: Text('Reading List', style: TextStyle(fontSize: 12)),
-                      ),
-                    },
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: BookStatus.values.map((status) {
+                      return _ChoiceChipButton(
+                        icon: status.icon,
+                        label: status.label,
+                        selected: _status == status,
+                        onPressed: () => setState(() => _status = status),
+                      );
+                    }).toList(growable: false),
                   ),
                   const SizedBox(height: 14),
                   Text(

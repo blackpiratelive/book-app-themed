@@ -175,5 +175,7 @@ String _buttonLabel(BookStatus status) {
       return 'Read';
     case BookStatus.readingList:
       return 'List';
+    case BookStatus.abandoned:
+      return 'Abandoned';
   }
 }
