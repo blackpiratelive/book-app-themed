@@ -267,9 +267,9 @@ class _YearOverviewSection extends StatelessWidget {
               color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
               borderRadius: BorderRadius.circular(10),
               onPressed: years.isEmpty ? null : onPickYear,
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
-                children: const <Widget>[
+                children: <Widget>[
                   Icon(CupertinoIcons.arrow_2_circlepath, size: 14),
                   SizedBox(width: 6),
                   Text(
@@ -589,7 +589,7 @@ class _YearBarChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (entries.isEmpty) {
-      return _ChartEmpty(label: 'No finished books yet.');
+      return const _ChartEmpty(label: 'No finished books yet.');
     }
 
     final resolvedAccent = accent.resolveFrom(context);
@@ -692,7 +692,7 @@ class _YearLineChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (entries.isEmpty) {
-      return _ChartEmpty(label: 'No finished books yet.');
+      return const _ChartEmpty(label: 'No finished books yet.');
     }
 
     final resolvedAccent = accent.resolveFrom(context);
@@ -794,7 +794,7 @@ class _MediumPieChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (mediumCounts.isEmpty) {
-      return _ChartEmpty(label: 'No finished books with reading medium yet.');
+      return const _ChartEmpty(label: 'No finished books with reading medium yet.');
     }
 
     final entries = mediumCounts.entries.toList()
