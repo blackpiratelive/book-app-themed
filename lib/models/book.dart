@@ -113,10 +113,16 @@ extension ReadingMediumX on ReadingMedium {
     final value = (raw as String?)?.trim().toLowerCase();
     switch (value) {
       case 'kindle':
+      case 'ebook':
+      case 'e-book':
         return ReadingMedium.kindle;
       case 'physical_book':
       case 'physical':
       case 'book':
+      case 'paperback':
+      case 'hardcover':
+      case 'paperback book':
+      case 'print':
         return ReadingMedium.physicalBook;
       case 'mobile':
       case 'phone':

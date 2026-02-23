@@ -7,23 +7,46 @@ class AppStorageSnapshot {
   const AppStorageSnapshot({
     required this.books,
     required this.isDarkMode,
+    required this.backendApiUrl,
+    required this.backendPassword,
+    required this.backendCachePrimed,
+    required this.hasLocalBookChanges,
+    required this.lastBackendSyncAtIso,
   });
 
   final List<BookItem> books;
   final bool isDarkMode;
+  final String backendApiUrl;
+  final String backendPassword;
+  final bool backendCachePrimed;
+  final bool hasLocalBookChanges;
+  final String? lastBackendSyncAtIso;
 }
 
 class AppStorageService {
   static const String _booksKey = 'book_items_v2';
   static const String _legacyBooksKey = 'book_items_v1';
   static const String _darkModeKey = 'dark_mode_enabled_v1';
+  static const String _backendApiUrlKey = 'backend_api_url_v1';
+  static const String _backendPasswordKey = 'backend_password_v1';
+  static const String _backendCachePrimedKey = 'backend_cache_primed_v1';
+  static const String _backendLocalChangesKey = 'backend_local_book_changes_v1';
+  static const String _backendLastSyncAtKey = 'backend_last_sync_at_v1';
 
   Future<AppStorageSnapshot> load() async {
     final prefs = await SharedPreferences.getInstance();
     final rawBooks = prefs.getString(_booksKey) ?? prefs.getString(_legacyBooksKey);
     final books = _decodeBooks(rawBooks);
     final isDarkMode = prefs.getBool(_darkModeKey) ?? false;
-    return AppStorageSnapshot(books: books, isDarkMode: isDarkMode);
+    return AppStorageSnapshot(
+      books: books,
+      isDarkMode: isDarkMode,
+      backendApiUrl: (prefs.getString(_backendApiUrlKey) ?? '').trim(),
+      backendPassword: prefs.getString(_backendPasswordKey) ?? '',
+      backendCachePrimed: prefs.getBool(_backendCachePrimedKey) ?? false,
+      hasLocalBookChanges: prefs.getBool(_backendLocalChangesKey) ?? false,
+      lastBackendSyncAtIso: _cleanNullableString(prefs.getString(_backendLastSyncAtKey)),
+    );
   }
 
   Future<void> saveBooks(List<BookItem> books) async {
@@ -35,6 +58,36 @@ class AppStorageService {
   Future<void> saveDarkMode(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_darkModeKey, value);
+  }
+
+  Future<void> saveBackendConfig({
+    required String apiUrl,
+    required String password,
+    required bool invalidateCache,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_backendApiUrlKey, apiUrl.trim());
+    await prefs.setString(_backendPasswordKey, password);
+    if (invalidateCache) {
+      await prefs.setBool(_backendCachePrimedKey, false);
+      await prefs.remove(_backendLastSyncAtKey);
+    }
+  }
+
+  Future<void> saveBackendSyncState({
+    required bool backendCachePrimed,
+    required bool hasLocalBookChanges,
+    String? lastBackendSyncAtIso,
+    bool clearLastBackendSyncAt = false,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_backendCachePrimedKey, backendCachePrimed);
+    await prefs.setBool(_backendLocalChangesKey, hasLocalBookChanges);
+    if (clearLastBackendSyncAt) {
+      await prefs.remove(_backendLastSyncAtKey);
+    } else if (lastBackendSyncAtIso != null && lastBackendSyncAtIso.trim().isNotEmpty) {
+      await prefs.setString(_backendLastSyncAtKey, lastBackendSyncAtIso.trim());
+    }
   }
 
   List<BookItem> _decodeBooks(String? raw) {
@@ -54,3 +107,8 @@ class AppStorageService {
   }
 }
 
+String? _cleanNullableString(String? raw) {
+  final value = raw?.trim();
+  if (value == null || value.isEmpty) return null;
+  return value;
+}

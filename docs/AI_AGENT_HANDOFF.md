@@ -27,6 +27,7 @@ Domain model:
 State and persistence:
 - `lib/state/app_controller.dart`: app state, filtering, CRUD, dark mode, persistence orchestration
 - `lib/services/app_storage_service.dart`: `shared_preferences` load/save
+- `lib/services/backend_api_service.dart`: backend HTTP client (`/api/public`, `/api/books`) + server-row mapping
 
 Pages:
 - `lib/pages/home_page.dart`
@@ -171,13 +172,13 @@ Implemented in `lib/pages/settings_page.dart`.
 
 Features:
 - Dark mode toggle (real setting, persisted)
-- Backend UI section (UI only, no backend logic wired)
-  - Backend API field (prefilled with `https://notes.blackpiratex.com`)
-  - Password button row (placeholder UI only)
-
-Important:
-- User explicitly requested **UI only** for backend settings at this stage
-- Do not add backend functionality unless requested
+- Backend section (wired)
+  - Backend API URL field (persisted)
+  - Password dialog / local password storage (persisted in `shared_preferences`)
+  - `Test Connection` button
+  - `Force Reload From API` button
+  - Backend cache / local changes / last sync status rows
+  - Confirmation dialog before force reload if local changes exist
 
 ### 9. Dark Mode
 
@@ -188,18 +189,28 @@ Features:
 - Persists across app launches
 - `CupertinoApp` theme updates reactively via `AnimatedBuilder`
 
-### 10. Local Persistence (Books + Theme)
+### 10. Local Persistence (Books + Theme + Backend Sync Metadata)
 
 Implemented in `lib/services/app_storage_service.dart`.
 
 Stored using `shared_preferences`:
 - Books list
 - Dark mode flag
+- Backend API URL
+- Backend password
+- Backend cache primed flag
+- Local book changes (dirty) flag
+- Last backend sync timestamp
 
 Keys:
 - Books (current): `book_items_v2`
 - Books (legacy read fallback): `book_items_v1`
 - Dark mode: `dark_mode_enabled_v1`
+- Backend API URL: `backend_api_url_v1`
+- Backend password: `backend_password_v1`
+- Backend cache primed: `backend_cache_primed_v1`
+- Local changes flag: `backend_local_book_changes_v1`
+- Last backend sync: `backend_last_sync_at_v1`
 
 Backward compatibility:
 - Loader attempts `book_items_v2`, then falls back to `book_items_v1`
@@ -218,7 +229,29 @@ Filtering behavior:
 - Home page shows books only for selected shelf
 - Shelf selection is stored in controller runtime state (not currently persisted)
 
-### 12. CI: Android APK Build in GitHub Actions
+### 12. Backend Read Sync (API -> Local Cache)
+
+Implemented in:
+- `lib/services/backend_api_service.dart`
+- `lib/state/app_controller.dart`
+
+Behavior:
+- Reads from backend using `GET /api/books` (see `docs/API_DOCS.md`)
+- Maps backend row schema into local `BookItem` model
+- Caches fetched books locally in existing books storage key
+- Auto-fetches on app startup only when:
+  - backend API URL is configured
+  - backend cache is not yet primed
+  - there are no local book changes
+- Does **not** auto-fetch on subsequent opens once cache is primed
+- Local add/edit/delete marks the cache as having local changes (dirty), which pauses auto-refresh
+- User can always override via Settings -> `Force Reload From API`
+
+Important:
+- Current implementation is read-sync only (pull from backend)
+- Local book CRUD is not pushed back to backend yet
+
+### 13. CI: Android APK Build in GitHub Actions
 
 Workflow:
 - `.github/workflows/android-build.yml`
@@ -254,7 +287,7 @@ These changes were specifically requested by the user and are already applied:
 - Book details page actions section removed
 - Book status shown as colored badge
 - Delete button moved to side of status row
-- Settings page backend API + password UI placeholders added
+- Settings page backend API + password controls, connection test, and force reload added
 
 ## Constraints / Expectations for Future Work
 
