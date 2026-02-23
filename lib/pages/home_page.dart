@@ -2,6 +2,7 @@ import 'package:book_app_themed/models/book.dart';
 import 'package:book_app_themed/pages/book_details_page.dart';
 import 'package:book_app_themed/pages/book_editor_page.dart';
 import 'package:book_app_themed/pages/book_search_page.dart';
+import 'package:book_app_themed/pages/stats_page.dart';
 import 'package:book_app_themed/pages/settings_page.dart';
 import 'package:book_app_themed/state/app_controller.dart';
 import 'package:book_app_themed/widgets/brand_app_icon.dart';
@@ -71,6 +72,14 @@ class HomePage extends StatelessWidget {
     );
   }
 
+  Future<void> _openStats(BuildContext context) async {
+    await Navigator.of(context).push<void>(
+      CupertinoPageRoute<void>(
+        builder: (_) => StatsPage(controller: controller),
+      ),
+    );
+  }
+
   Future<void> _openBookDetails(BuildContext context, BookItem book) async {
     await Navigator.of(context).push<void>(
       CupertinoPageRoute<void>(
@@ -128,6 +137,8 @@ class HomePage extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     'My Books',
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
                                       fontSize: 34,
                                       fontWeight: FontWeight.w800,
@@ -163,6 +174,13 @@ class HomePage extends StatelessWidget {
                         icon: CupertinoIcons.gear_alt_fill,
                         iconSize: 21,
                         onPressed: () => _openSettings(context),
+                      ),
+                      const SizedBox(width: 10),
+                      _CircleActionButton(
+                        icon: CupertinoIcons.chart_bar_fill,
+                        iconSize: 19,
+                        onPressed: () => _openStats(context),
+                        tintColor: CupertinoColors.systemIndigo,
                       ),
                       const SizedBox(width: 10),
                       _CircleActionButton(

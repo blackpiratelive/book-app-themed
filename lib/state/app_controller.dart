@@ -199,6 +199,31 @@ class AppController extends ChangeNotifier {
     await _markLocalBookChanges();
   }
 
+  Future<void> updateBookHighlightsLocally(String bookId, List<String> highlights) async {
+    final index = _books.indexWhere((b) => b.id == bookId);
+    if (index < 0) return;
+
+    final cleanedHighlights = highlights
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+    _books[index] = _books[index].copyWith(highlights: cleanedHighlights);
+    notifyListeners();
+    await _storage.saveBooks(_books);
+    await _markLocalBookChanges();
+  }
+
+  Future<void> updateBookProgressLocally(String bookId, int progressPercent) async {
+    final index = _books.indexWhere((b) => b.id == bookId);
+    if (index < 0) return;
+
+    final clamped = progressPercent.clamp(0, 100).toInt();
+    _books[index] = _books[index].copyWith(progressPercent: clamped);
+    notifyListeners();
+    await _storage.saveBooks(_books);
+    await _markLocalBookChanges();
+  }
+
   BookItem? bookById(String id) {
     for (final book in _books) {
       if (book.id == id) return book;

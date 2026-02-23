@@ -1,3 +1,5 @@
+import 'dart:ui';
+
 import 'package:book_app_themed/models/book.dart';
 import 'package:book_app_themed/pages/book_editor_page.dart';
 import 'package:book_app_themed/services/backend_api_service.dart';
@@ -83,7 +85,11 @@ class BookDetailsPage extends StatelessWidget {
     await Clipboard.setData(ClipboardData(text: value));
   }
 
-  Future<String?> _promptForHighlight(BuildContext context) async {
+  Future<String?> _promptForHighlight(
+    BuildContext context, {
+    String title = 'Add Highlight',
+    String helperText = 'Saved to this book and synced using the API update endpoint.',
+  }) async {
     final inputController = TextEditingController();
     try {
       final result = await showCupertinoModalPopup<String>(
@@ -94,80 +100,87 @@ class BookDetailsPage extends StatelessWidget {
               final canAdd = inputController.text.trim().isNotEmpty;
               final background = CupertinoColors.systemGroupedBackground.resolveFrom(context);
               final border = CupertinoColors.separator.resolveFrom(context);
+              final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
 
-              return SafeArea(
-                top: false,
-                child: Container(
-                  height: 330,
-                  padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
-                  decoration: BoxDecoration(
-                    color: background,
-                    borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-                    border: Border(top: BorderSide(color: border.withValues(alpha: 0.45))),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Row(
-                        children: <Widget>[
-                          CupertinoButton(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            minimumSize: const Size(0, 0),
-                            onPressed: () => Navigator.of(sheetContext).pop(),
-                            child: const Text('Cancel'),
-                          ),
-                          const Spacer(),
-                          Text(
-                            'Add Highlight',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                              color: CupertinoColors.label.resolveFrom(context),
+              return AnimatedPadding(
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                padding: EdgeInsets.only(bottom: keyboardInset),
+                child: SafeArea(
+                  top: false,
+                  child: Container(
+                    height: 330,
+                    padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                    decoration: BoxDecoration(
+                      color: background,
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                      border: Border(top: BorderSide(color: border.withValues(alpha: 0.45))),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Row(
+                          children: <Widget>[
+                            CupertinoButton(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              minimumSize: const Size(0, 0),
+                              onPressed: () => Navigator.of(sheetContext).pop(),
+                              child: const Text('Cancel'),
                             ),
-                          ),
-                          const Spacer(),
-                          CupertinoButton(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            minimumSize: const Size(0, 0),
-                            onPressed: canAdd
-                                ? () => Navigator.of(sheetContext).pop(inputController.text.trim())
-                                : null,
-                            child: const Text('Add'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Saved to this book and synced using the API update endpoint.',
-                        style: TextStyle(
-                          fontSize: 12.5,
-                          color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                            const Spacer(),
+                            Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: CupertinoColors.label.resolveFrom(context),
+                              ),
+                            ),
+                            const Spacer(),
+                            CupertinoButton(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              minimumSize: const Size(0, 0),
+                              onPressed: canAdd
+                                  ? () =>
+                                      Navigator.of(sheetContext).pop(inputController.text.trim())
+                                  : null,
+                              child: const Text('Add'),
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Expanded(
-                        child: CupertinoTextField(
-                          controller: inputController,
-                          placeholder: 'Paste or type a highlight...',
-                          maxLines: null,
-                          expands: true,
-                          keyboardType: TextInputType.multiline,
-                          textAlignVertical: TextAlignVertical.top,
-                          textCapitalization: TextCapitalization.sentences,
-                          onChanged: (_) => setSheetState(() {}),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: CupertinoColors.secondarySystemGroupedBackground.resolveFrom(
-                              context,
-                            ),
-                            borderRadius: BorderRadius.circular(14),
-                            border: Border.all(
-                              color: border.withValues(alpha: 0.35),
-                            ),
+                        const SizedBox(height: 8),
+                        Text(
+                          helperText,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            color: CupertinoColors.secondaryLabel.resolveFrom(context),
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 10),
+                        Expanded(
+                          child: CupertinoTextField(
+                            controller: inputController,
+                            placeholder: 'Paste or type a highlight...',
+                            maxLines: null,
+                            expands: true,
+                            keyboardType: TextInputType.multiline,
+                            textAlignVertical: TextAlignVertical.top,
+                            textCapitalization: TextCapitalization.sentences,
+                            onChanged: (_) => setSheetState(() {}),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.secondarySystemGroupedBackground.resolveFrom(
+                                context,
+                              ),
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: border.withValues(alpha: 0.35),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               );
@@ -213,6 +226,133 @@ class BookDetailsPage extends StatelessWidget {
     }
   }
 
+  Future<void> _addQuickHighlightLocally(BuildContext context, BookItem book) async {
+    final newHighlight = await _promptForHighlight(
+      context,
+      title: 'Quick Highlight',
+      helperText: 'Saved locally only. Pull to refresh to replace local cache with backend data.',
+    );
+    if (newHighlight == null) return;
+
+    final current = controller.bookById(book.id);
+    if (current == null) return;
+    final updatedHighlights = <String>[newHighlight, ...current.highlights];
+    await controller.updateBookHighlightsLocally(book.id, updatedHighlights);
+  }
+
+  Future<int?> _promptForProgressValue(BuildContext context, int initialValue) async {
+    var selected = initialValue.clamp(0, 100).toInt();
+
+    return showCupertinoModalPopup<int>(
+      context: context,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final border = CupertinoColors.separator.resolveFrom(context);
+            return SafeArea(
+              top: false,
+              child: Container(
+                height: 260,
+                padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemGroupedBackground.resolveFrom(context),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                  border: Border(top: BorderSide(color: border.withValues(alpha: 0.45))),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Row(
+                      children: <Widget>[
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          minimumSize: const Size(0, 0),
+                          onPressed: () => Navigator.of(sheetContext).pop(),
+                          child: const Text('Cancel'),
+                        ),
+                        const Spacer(),
+                        Text(
+                          'Quick Progress',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: CupertinoColors.label.resolveFrom(context),
+                          ),
+                        ),
+                        const Spacer(),
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          minimumSize: const Size(0, 0),
+                          onPressed: () => Navigator.of(sheetContext).pop(selected),
+                          child: const Text('Save'),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Saved locally only until you manually refresh.',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Center(
+                      child: Text(
+                        '$selected%',
+                        style: TextStyle(
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          color: CupertinoColors.label.resolveFrom(context),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    CupertinoSlider(
+                      value: selected.toDouble(),
+                      min: 0,
+                      max: 100,
+                      divisions: 100,
+                      onChanged: (value) => setSheetState(() => selected = value.round()),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: <Widget>[
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          minimumSize: const Size(0, 0),
+                          color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+                          borderRadius: BorderRadius.circular(10),
+                          onPressed: () => setSheetState(() => selected = (selected - 5).clamp(0, 100)),
+                          child: const Text('-5'),
+                        ),
+                        const SizedBox(width: 8),
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          minimumSize: const Size(0, 0),
+                          color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+                          borderRadius: BorderRadius.circular(10),
+                          onPressed: () => setSheetState(() => selected = (selected + 5).clamp(0, 100)),
+                          child: const Text('+5'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _adjustQuickProgressLocally(BuildContext context, BookItem book) async {
+    final picked = await _promptForProgressValue(context, book.progressPercent);
+    if (picked == null) return;
+    await controller.updateBookProgressLocally(book.id, picked);
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -244,100 +384,121 @@ class BookDetailsPage extends StatelessWidget {
             ),
           ),
           child: SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            bottom: false,
+            child: Stack(
               children: <Widget>[
-                Center(
-                  child: BookCover(
-                    title: book.title,
-                    coverUrl: book.coverUrl,
-                    width: 168,
-                    height: 244,
-                    borderRadius: 20,
-                    heroTag: 'book-cover-${book.id}',
+                ListView(
+                  padding: EdgeInsets.fromLTRB(
+                    16,
+                    12,
+                    16,
+                    book.status == BookStatus.reading ? 108 : 24,
                   ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  book.title,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: CupertinoColors.label.resolveFrom(context),
-                    height: 1.1,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  book.author.isEmpty ? 'Unknown author' : book.author,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 15,
-                    color: CupertinoColors.secondaryLabel.resolveFrom(context),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Row(
                   children: <Widget>[
-                    Expanded(
-                      child: book.status == BookStatus.reading
-                          ? _ReadingProgressStatusCard(progressPercent: book.progressPercent)
-                          : _StatusBadge(status: book.status),
+                    Center(
+                      child: BookCover(
+                        title: book.title,
+                        coverUrl: book.coverUrl,
+                        width: 168,
+                        height: 244,
+                        borderRadius: 20,
+                        heroTag: 'book-cover-${book.id}',
+                      ),
                     ),
-                    const SizedBox(width: 10),
-                    CupertinoButton(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      color: CupertinoColors.systemRed.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(12),
-                      onPressed: () => _deleteBook(context, book),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          Icon(
-                            CupertinoIcons.delete_solid,
-                            color: CupertinoColors.systemRed,
-                            size: 16,
+                    const SizedBox(height: 16),
+                    Text(
+                      book.title,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: CupertinoColors.label.resolveFrom(context),
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      book.author.isEmpty ? 'Unknown author' : book.author,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: book.status == BookStatus.reading
+                              ? _ReadingProgressStatusCard(progressPercent: book.progressPercent)
+                              : _StatusBadge(status: book.status),
+                        ),
+                        const SizedBox(width: 10),
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          color: CupertinoColors.systemRed.withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(12),
+                          onPressed: () => _deleteBook(context, book),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              Icon(
+                                CupertinoIcons.delete_solid,
+                                color: CupertinoColors.systemRed,
+                                size: 16,
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                'Delete',
+                                style: TextStyle(
+                                  color: CupertinoColors.systemRed,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
                           ),
-                          SizedBox(width: 6),
-                          Text(
-                            'Delete',
-                            style: TextStyle(
-                              color: CupertinoColors.systemRed,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    SectionCard(
+                      title: 'More Details',
+                      child: _DetailsGrid(book: book),
+                    ),
+                    const SizedBox(height: 12),
+                    SectionCard(
+                      title: 'Description',
+                      child: Text(
+                        book.notes.trim().isEmpty ? 'No description available.' : book.notes.trim(),
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.3,
+                          color: CupertinoColors.label.resolveFrom(context),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    SectionCard(
+                      title: 'Highlights',
+                      child: _HighlightsList(
+                        highlights: book.highlights,
+                        onAddHighlight: () => _addHighlight(context, book),
+                        onCopyHighlight: _copyHighlight,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                SectionCard(
-                  title: 'More Details',
-                  child: _DetailsGrid(book: book),
-                ),
-                const SizedBox(height: 12),
-                SectionCard(
-                  title: 'Description',
-                  child: Text(
-                    book.notes.trim().isEmpty ? 'No description available.' : book.notes.trim(),
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.3,
-                      color: CupertinoColors.label.resolveFrom(context),
+                if (book.status == BookStatus.reading)
+                  Positioned(
+                    left: 16,
+                    right: 16,
+                    bottom: 12,
+                    child: _ReadingQuickActionsBar(
+                      progressPercent: book.progressPercent,
+                      onAddHighlight: () => _addQuickHighlightLocally(context, book),
+                      onAdjustProgress: () => _adjustQuickProgressLocally(context, book),
                     ),
                   ),
-                ),
-                const SizedBox(height: 12),
-                SectionCard(
-                  title: 'Highlights',
-                  child: _HighlightsList(
-                    highlights: book.highlights,
-                    onAddHighlight: () => _addHighlight(context, book),
-                    onCopyHighlight: _copyHighlight,
-                  ),
-                ),
               ],
             ),
           ),
@@ -740,6 +901,136 @@ class _HighlightsList extends StatelessWidget {
           );
         }),
       ],
+    );
+  }
+}
+
+class _ReadingQuickActionsBar extends StatelessWidget {
+  const _ReadingQuickActionsBar({
+    required this.progressPercent,
+    required this.onAddHighlight,
+    required this.onAdjustProgress,
+  });
+
+  final int progressPercent;
+  final Future<void> Function() onAddHighlight;
+  final Future<void> Function() onAdjustProgress;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final border = CupertinoColors.separator.resolveFrom(context).withValues(alpha: 0.22);
+    final background = (isDark ? const Color(0xFF121316) : CupertinoColors.white).withValues(
+      alpha: isDark ? 0.72 : 0.76,
+    );
+
+    return SafeArea(
+      top: false,
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(18),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: background,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: border),
+              boxShadow: <BoxShadow>[
+                BoxShadow(
+                  color: CupertinoColors.black.withValues(alpha: isDark ? 0.28 : 0.12),
+                  blurRadius: 18,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Row(
+                children: <Widget>[
+                  Expanded(
+                    child: _GlassyQuickActionButton(
+                      icon: CupertinoIcons.quote_bubble,
+                      label: 'Quick Highlight',
+                      tint: CupertinoColors.systemBlue,
+                      onPressed: onAddHighlight,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _GlassyQuickActionButton(
+                      icon: CupertinoIcons.percent,
+                      label: 'Progress $progressPercent%',
+                      tint: CupertinoColors.systemTeal,
+                      onPressed: onAdjustProgress,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _GlassyQuickActionButton extends StatelessWidget {
+  const _GlassyQuickActionButton({
+    required this.icon,
+    required this.label,
+    required this.tint,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final CupertinoDynamicColor tint;
+  final Future<void> Function() onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedTint = tint.resolveFrom(context);
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      minimumSize: const Size(0, 0),
+      onPressed: () {
+        onPressed();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: resolvedTint.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(13),
+          border: Border.all(color: resolvedTint.withValues(alpha: 0.16)),
+        ),
+        child: Row(
+          children: <Widget>[
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                color: resolvedTint.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(9),
+              ),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 15, color: resolvedTint),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: CupertinoColors.label.resolveFrom(context),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

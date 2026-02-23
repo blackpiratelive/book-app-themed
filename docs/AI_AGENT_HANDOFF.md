@@ -36,6 +36,7 @@ Pages:
 - `lib/pages/book_details_page.dart`
 - `lib/pages/book_editor_page.dart`
 - `lib/pages/book_search_page.dart` (backend search + add to Reading List)
+- `lib/pages/stats_page.dart` (local-cache stats + charts)
 - `lib/pages/settings_page.dart`
 
 Shared widgets:
@@ -67,6 +68,7 @@ Features:
 - Small brand label text (`BlackPirateX Book tracker`) under the heading
 - Top-right action buttons:
   - Settings button
+  - Stats button (opens local-cache stats page)
   - Abandoned shelf quick-access button (next to Settings)
   - Add (`+`) button (larger size per user request)
 - Shelf count subtitle (e.g. number of books in currently selected shelf)
@@ -143,6 +145,11 @@ Features:
   - Quick `Add` highlight button (Cupertino sheet composer)
   - Per-highlight `Copy` button
   - Saves locally and syncs highlights to backend via `/api/books` `POST` `action: "update"` (`highlights`, `hasHighlights`)
+- Highlight add composer shifts above keyboard (keyboard-safe bottom sheet padding)
+- When status is `Reading`, a glassy floating quick-actions bar appears at bottom
+  - Quick Highlight (local-only)
+  - Quick Progress adjuster (local-only)
+  - These quick actions intentionally do not sync immediately; local cache changes persist until manual refresh/overwrite
 - Delete confirmation dialog
 
 Note:
@@ -290,6 +297,29 @@ Behavior:
 - Caches fetched books locally in existing books storage key
 - First install / first app open:
   - app uses prefilled backend URL (`https://notes.blackpiratex.com`) as the default controller backend URL
+
+### 15. Stats Page (Local Cache Only)
+
+Implemented in:
+- `lib/pages/stats_page.dart`
+- `lib/pages/home_page.dart`
+
+Behavior:
+- Uses only `AppController.books` (local cache / local state), no API calls
+- Counts only finished books:
+  - local status must be `Read`
+  - `endDateIso` must be set/parseable
+- Uses `endDateIso` year for yearly grouping
+- Default year selection is current year if available, otherwise latest available year
+- Shows selected-year summary:
+  - finished books count
+  - total pages read
+  - top authors
+  - finished books cover grid
+- Always shows trend charts:
+  - books read over years
+  - pages read over years
+- Shows reading medium distribution chart for finished books
   - auto-fetches from backend on first launch if cache is not primed
 - Auto-fetches on app startup only when:
   - backend API URL is configured
