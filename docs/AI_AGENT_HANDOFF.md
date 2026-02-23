@@ -317,6 +317,7 @@ These changes were specifically requested by the user and are already applied:
 ## Constraints / Expectations for Future Work
 
 - Keep `flutter analyze` clean; recent backend/settings implementation required a `mounted` guard in async settings actions (`use_build_context_synchronously` lint).
+- `BookSearchPage` async flows should avoid `return` inside `finally`; use `if (mounted) { setState(...) }` guards instead (CI flags `control_flow_in_finally`).
 - Because Android platform files are generated in CI (`flutter create`), the CI workflow now patches `android/app/src/main/AndroidManifest.xml` to add `INTERNET` permission so release APKs can access backend APIs and cover images.
 
 Follow these unless the user explicitly changes direction:

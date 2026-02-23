@@ -65,8 +65,9 @@ class _BookSearchPageState extends State<BookSearchPage> {
         _statusMessage = 'Search failed. Check backend URL/network and try again.';
       });
     } finally {
-      if (!mounted) return;
-      setState(() => _isSearching = false);
+      if (mounted) {
+        setState(() => _isSearching = false);
+      }
     }
   }
 
@@ -92,8 +93,9 @@ class _BookSearchPageState extends State<BookSearchPage> {
             : (widget.controller.lastBackendStatusMessage ?? 'Failed to add book.');
       });
     } finally {
-      if (!mounted) return;
-      setState(() => _addingOlid = null);
+      if (mounted) {
+        setState(() => _addingOlid = null);
+      }
     }
   }
 
