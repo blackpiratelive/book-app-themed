@@ -17,7 +17,7 @@ class _FirstRunIntroPageState extends State<FirstRunIntroPage> {
   bool _isCompleting = false;
 
   static final List<_IntroStep> _steps = <_IntroStep>[
-    _IntroStep(
+    const _IntroStep(
       title: 'Welcome to your shelf',
       subtitle:
           'Track what you are reading, what you finished, and what is waiting in your Reading List.',
@@ -29,7 +29,7 @@ class _FirstRunIntroPageState extends State<FirstRunIntroPage> {
         'The red button in the header opens the Abandoned shelf.',
       ],
     ),
-    _IntroStep(
+    const _IntroStep(
       title: 'Add books fast',
       subtitle:
           'Use the big + button to add manually or search your backend library API.',
@@ -41,7 +41,7 @@ class _FirstRunIntroPageState extends State<FirstRunIntroPage> {
         'New books are saved locally right away.',
       ],
     ),
-    _IntroStep(
+    const _IntroStep(
       title: 'Track progress and highlights',
       subtitle:
           'Open any book card to update progress, edit details, save notes, and manage highlights.',
@@ -53,7 +53,7 @@ class _FirstRunIntroPageState extends State<FirstRunIntroPage> {
         'Use Edit in the top bar to update metadata or reading dates.',
       ],
     ),
-    _IntroStep(
+    const _IntroStep(
       title: 'Sync, stats, and settings',
       subtitle:
           'Pull down on Home to refresh from backend, then use Stats and Settings to manage the app.',
@@ -157,7 +157,7 @@ class _FirstRunIntroPageState extends State<FirstRunIntroPage> {
                         horizontal: 10,
                         vertical: 6,
                       ),
-                      minSize: 0,
+                      minimumSize: Size.zero,
                       onPressed: _isCompleting ? null : _finish,
                       child: const Text('Skip'),
                     ),

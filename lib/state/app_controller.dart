@@ -451,8 +451,9 @@ class AppController extends ChangeNotifier {
   }
 
   bool _canPushBookUpdateToBackend(BookItem book) {
-    if (_backendApiUrl.trim().isEmpty || _backendPassword.trim().isEmpty)
+    if (_backendApiUrl.trim().isEmpty || _backendPassword.trim().isEmpty) {
       return false;
+    }
     final id = book.id.trim().toUpperCase();
     return id.startsWith('OL');
   }
