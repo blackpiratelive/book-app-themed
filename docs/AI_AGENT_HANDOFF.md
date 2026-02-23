@@ -8,6 +8,8 @@ It summarizes what is currently implemented, how the app is structured, and the 
 
 - App type: Flutter app (Android-targeted build via GitHub Actions)
 - Design language: Cupertino (iOS-style), explicitly **not** Material Design
+- App name (branding): `BlackPirateX Book tracker`
+- Android package / applicationId target: `com.blackpiratex.book` (patched in CI after Android scaffold generation)
 - Local environment note: this repo may be edited on a weak machine without Flutter installed; CI is used for build/analyze
 - Android platform files are **not** stored in repo; CI generates them with `flutter create --platforms=android .`
 
@@ -37,6 +39,7 @@ Pages:
 - `lib/pages/settings_page.dart`
 
 Shared widgets:
+- `lib/widgets/brand_app_icon.dart`
 - `lib/widgets/book_card.dart`
 - `lib/widgets/book_cover.dart`
 - `lib/widgets/floating_status_bar.dart`
@@ -52,6 +55,7 @@ Utilities:
 - Uses `CupertinoApp` and Cupertino widgets
 - No Material UI components are intentionally used
 - User requested Cupertino styling and avoidance of Android Material design
+- `CupertinoApp.title` is set to `BlackPirateX Book tracker`
 
 ### 2. Home Page (Books Shelf)
 
@@ -59,6 +63,8 @@ Implemented in `lib/pages/home_page.dart`.
 
 Features:
 - Large `My Books` heading
+- Branded SVG app icon shown in header (`assets/icons/blackpiratex_book_tracker_icon.svg`)
+- Small brand label text (`BlackPirateX Book tracker`) under the heading
 - Top-right action buttons:
   - Settings button
   - Add (`+`) button (larger size per user request)
@@ -107,6 +113,12 @@ Features:
 - Error fallback if URL fails
 - Default generated cover placeholder with gradient + book icon + title text
 - Hero animation support via `heroTag`
+
+### Branding Assets / App Icon
+
+- SVG source icon lives at `assets/icons/blackpiratex_book_tracker_icon.svg`
+- Flutter UI uses the SVG through `flutter_svg` (`lib/widgets/brand_app_icon.dart`)
+- Android launcher icons are generated from the SVG in CI using `rsvg-convert` after `flutter create`
 
 ### 6. Book Details Page
 
@@ -295,6 +307,12 @@ Behavior:
 - Installs Flutter (stable)
 - Generates Android scaffold in CI:
   - `flutter create --platforms=android ... .`
+- Patches generated Android scaffold to enforce:
+  - package/applicationId `com.blackpiratex.book`
+  - app label `BlackPirateX Book tracker`
+  - `INTERNET` permission
+  - `MainActivity` package path/namespace alignment
+- Renders Android launcher icons from the SVG app icon source using `librsvg2-bin` (`rsvg-convert`)
 - Runs:
   - `flutter pub get`
   - `flutter analyze`

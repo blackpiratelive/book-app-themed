@@ -11,6 +11,7 @@ dependencies:
     sdk: flutter
   cached_network_image: ^3.4.1
   cupertino_icons: ^1.0.8
+  flutter_svg: ^2.0.17
   shared_preferences: ^2.2.3
 
 dev_dependencies:
@@ -20,3 +21,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: false
+  assets:
+    - assets/icons/blackpiratex_book_tracker_icon.svg

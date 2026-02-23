@@ -4,6 +4,7 @@ import 'package:book_app_themed/pages/book_editor_page.dart';
 import 'package:book_app_themed/pages/book_search_page.dart';
 import 'package:book_app_themed/pages/settings_page.dart';
 import 'package:book_app_themed/state/app_controller.dart';
+import 'package:book_app_themed/widgets/brand_app_icon.dart';
 import 'package:book_app_themed/widgets/book_card.dart';
 import 'package:book_app_themed/widgets/floating_status_bar.dart';
 import 'package:flutter/cupertino.dart';
@@ -120,16 +121,34 @@ class HomePage extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
-                            Text(
-                              'My Books',
-                              style: TextStyle(
-                                fontSize: 34,
-                                fontWeight: FontWeight.w800,
-                                color: CupertinoColors.label.resolveFrom(context),
-                                height: 1.05,
-                              ),
+                            Row(
+                              children: <Widget>[
+                                const BrandAppIcon(size: 36, borderRadius: 10),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'My Books',
+                                    style: TextStyle(
+                                      fontSize: 34,
+                                      fontWeight: FontWeight.w800,
+                                      color: CupertinoColors.label.resolveFrom(context),
+                                      height: 1.05,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 4),
+                            Text(
+                              'BlackPirateX Book tracker',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                                letterSpacing: 0.2,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
                             Text(
                               '${visibleBooks.length} in ${controller.selectedShelf.label}',
                               style: TextStyle(

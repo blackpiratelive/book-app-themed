@@ -14,7 +14,7 @@ class BookTrackerApp extends StatelessWidget {
       builder: (context, _) {
         return CupertinoApp(
           debugShowCheckedModeBanner: false,
-          title: 'My Books',
+          title: 'BlackPirateX Book tracker',
           theme: controller.themeData,
           home: HomePage(controller: controller),
         );
@@ -22,4 +22,3 @@ class BookTrackerApp extends StatelessWidget {
     );
   }
 }
-

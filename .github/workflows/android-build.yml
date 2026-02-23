@@ -26,19 +26,36 @@ jobs:
           cache: true
 
       - name: Generate Android platform scaffolding
-        run: flutter create --platforms=android --project-name book_app_themed --org com.example.booktracker .
+        run: flutter create --platforms=android --project-name book_app_themed --org com.blackpiratex .
 
-      - name: Enable Android internet permission
+      - name: Install SVG renderer
         run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          manifest = Path("android/app/src/main/AndroidManifest.xml")
-          text = manifest.read_text()
-          perm = '    <uses-permission android:name="android.permission.INTERNET"/>\n'
-          if "android.permission.INTERNET" not in text:
-              text = text.replace("<application", f"{perm}<application", 1)
-              manifest.write_text(text)
-          PY
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+
+      - name: Configure Android package, label, permission, and launcher icon
+        run: |
+          python3 scripts/configure_generated_android.py
+          ICON_SVG="assets/icons/blackpiratex_book_tracker_icon.svg"
+          find android/app/src/main/res -type f -name 'ic_launcher*.png' | sort | while read -r file; do
+            dir_name="$(basename "$(dirname "$file")")"
+            base_name="$(basename "$file")"
+            case "$dir_name" in
+              mipmap-mdpi) launcher_size=48; foreground_size=108 ;;
+              mipmap-hdpi) launcher_size=72; foreground_size=162 ;;
+              mipmap-xhdpi) launcher_size=96; foreground_size=216 ;;
+              mipmap-xxhdpi) launcher_size=144; foreground_size=324 ;;
+              mipmap-xxxhdpi) launcher_size=192; foreground_size=432 ;;
+              *) continue ;;
+            esac
+            size="$launcher_size"
+            case "$base_name" in
+              *foreground*|*monochrome*)
+                size="$foreground_size"
+                ;;
+            esac
+            rsvg-convert -w "$size" -h "$size" "$ICON_SVG" -o "$file"
+          done
 
       - name: Install dependencies
         run: flutter pub get
