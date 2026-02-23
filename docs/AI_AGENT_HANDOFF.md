@@ -278,6 +278,7 @@ These changes were specifically requested by the user and are already applied:
 - Larger `My Books` heading
 - Larger plus button on home page
 - Bottom floating blurred shelf selector (instead of top segmented bar)
+- Bottom floating shelf selector restyled to dark segmented capsule (Apple Fitness-style visual direction)
 - Shelf names changed to:
   - Reading
   - Read
