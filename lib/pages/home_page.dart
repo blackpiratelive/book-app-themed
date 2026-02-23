@@ -78,6 +78,28 @@ class HomePage extends StatelessWidget {
     );
   }
 
+  Future<void> _refreshFromBackend(BuildContext context) async {
+    try {
+      await controller.refreshFromBackendIfChanged();
+    } catch (e) {
+      if (!context.mounted) return;
+      final message = controller.lastBackendStatusMessage ?? e.toString();
+      await showCupertinoDialog<void>(
+        context: context,
+        builder: (dialogContext) => CupertinoAlertDialog(
+          title: const Text('Refresh Failed'),
+          content: Text(message),
+          actions: <Widget>[
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final visibleBooks = controller.visibleBooks;
@@ -134,24 +156,45 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
                 Expanded(
-                  child: controller.isLoading
-                      ? const Center(child: CupertinoActivityIndicator())
-                      : visibleBooks.isEmpty
-                          ? _EmptyShelf(
-                              status: controller.selectedShelf,
-                              onAddBook: () => _openAddMenu(context),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(16, 4, 16, 116),
-                              itemCount: visibleBooks.length,
-                              itemBuilder: (context, index) {
+                  child: CustomScrollView(
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
+                    slivers: <Widget>[
+                      CupertinoSliverRefreshControl(
+                        onRefresh: () => _refreshFromBackend(context),
+                      ),
+                      if (controller.isLoading)
+                        const SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: Center(child: CupertinoActivityIndicator()),
+                        )
+                      else if (visibleBooks.isEmpty)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: _EmptyShelf(
+                            status: controller.selectedShelf,
+                            onAddBook: () => _openAddMenu(context),
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 116),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
                                 final book = visibleBooks[index];
                                 return BookCard(
                                   book: book,
                                   onTap: () => _openBookDetails(context, book),
                                 );
                               },
+                              childCount: visibleBooks.length,
                             ),
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ],
             ),

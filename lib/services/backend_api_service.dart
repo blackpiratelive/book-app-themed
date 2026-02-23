@@ -150,6 +150,52 @@ class BackendApiService {
     return _mapServerBook(Map<String, dynamic>.from(book), DateTime.now().toUtc(), 0);
   }
 
+  Future<void> updateBook({
+    required String baseUrl,
+    required String password,
+    required BookItem book,
+  }) async {
+    if (password.trim().isEmpty) {
+      throw const BackendApiException('Set the backend admin password in Settings first.');
+    }
+
+    final response = await _sendJsonRequest(
+      method: 'POST',
+      uri: _buildUri(baseUrl, '/api/books'),
+      bodyJson: <String, dynamic>{
+        'password': password,
+        'action': 'update',
+        'data': <String, dynamic>{
+          'id': book.id,
+          'title': book.title,
+          'authors': jsonEncode(
+            book.author.trim().isEmpty ? const <String>[] : <String>[book.author.trim()],
+          ),
+          'imageLinks': jsonEncode(
+            book.coverUrl.trim().isEmpty
+                ? const <String, dynamic>{}
+                : <String, dynamic>{'thumbnail': book.coverUrl.trim()},
+          ),
+          'pageCount': book.pageCount,
+          'startedOn': book.startDateIso,
+          'finishedOn': book.endDateIso,
+          'readingMedium': _serverReadingMedium(book.medium),
+          'shelf': _serverShelf(book.status),
+          'readingProgress': book.progressPercent,
+          'bookDescription': book.notes,
+        },
+      },
+      responseTimeout: const Duration(seconds: 25),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw BackendApiException(
+        _extractErrorMessage(response.body) ??
+            'Update failed (${response.statusCode})',
+      );
+    }
+  }
+
   Future<BackendConnectionTestResult> testConnection({
     required String baseUrl,
     required String password,
@@ -298,6 +344,7 @@ class BackendApiService {
     final author = _firstAuthor(row['authors']);
     final coverUrl = _thumbnailUrl(row['imageLinks']);
     final description = (row['bookDescription'] as String? ?? '').trim();
+    final highlights = _highlightsList(row['highlights']);
     final progress = _asInt(row['readingProgress'])?.clamp(0, 100).toInt() ?? 0;
     final pageCount = _asInt(row['pageCount'])?.clamp(0, 100000).toInt() ?? 0;
     final status = _mapShelf(row['shelf'], progress);
@@ -321,6 +368,7 @@ class BackendApiService {
       startDateIso: startedOn,
       endDateIso: finishedOn,
       createdAtIso: createdAt,
+      highlights: highlights,
     );
   }
 
@@ -349,6 +397,18 @@ class BackendApiService {
       return value.trim();
     }
     return '';
+  }
+
+  List<String> _highlightsList(dynamic raw) {
+    final parsed = _parseMaybeJson(raw);
+    if (parsed is List) {
+      return parsed
+          .whereType<String>()
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty)
+          .toList(growable: false);
+    }
+    return const <String>[];
   }
 
   dynamic _parseMaybeJson(dynamic raw) {
@@ -380,6 +440,30 @@ class BackendApiService {
       case 'watchlist':
       default:
         return BookStatus.readingList;
+    }
+  }
+
+  String _serverShelf(BookStatus status) {
+    switch (status) {
+      case BookStatus.reading:
+        return 'currentlyReading';
+      case BookStatus.read:
+        return 'read';
+      case BookStatus.readingList:
+        return 'watchlist';
+    }
+  }
+
+  String _serverReadingMedium(ReadingMedium medium) {
+    switch (medium) {
+      case ReadingMedium.kindle:
+        return 'Kindle';
+      case ReadingMedium.physicalBook:
+        return 'Paperback';
+      case ReadingMedium.mobile:
+        return 'Mobile';
+      case ReadingMedium.laptop:
+        return 'Laptop';
     }
   }
 

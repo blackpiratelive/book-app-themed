@@ -1,5 +1,6 @@
 import 'package:book_app_themed/models/book.dart';
 import 'package:book_app_themed/pages/book_editor_page.dart';
+import 'package:book_app_themed/services/backend_api_service.dart';
 import 'package:book_app_themed/state/app_controller.dart';
 import 'package:book_app_themed/utils/date_formatters.dart';
 import 'package:book_app_themed/widgets/book_cover.dart';
@@ -23,7 +24,26 @@ class BookDetailsPage extends StatelessWidget {
       ),
     );
     if (draft == null) return;
-    await controller.updateBook(book.id, draft);
+    try {
+      await controller.updateBook(book.id, draft);
+    } on BackendApiException catch (e) {
+      if (!context.mounted) return;
+      await showCupertinoDialog<void>(
+        context: context,
+        builder: (dialogContext) => CupertinoAlertDialog(
+          title: const Text('Saved Locally'),
+          content: Text(
+            'The book was saved locally, but syncing the edit to the backend failed.\n\n${e.message}',
+          ),
+          actions: <Widget>[
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   Future<void> _deleteBook(BuildContext context, BookItem book) async {
@@ -124,7 +144,9 @@ class BookDetailsPage extends StatelessWidget {
                 Row(
                   children: <Widget>[
                     Expanded(
-                      child: _StatusBadge(status: book.status),
+                      child: book.status == BookStatus.reading
+                          ? _ReadingProgressStatusCard(progressPercent: book.progressPercent)
+                          : _StatusBadge(status: book.status),
                     ),
                     const SizedBox(width: 10),
                     CupertinoButton(
@@ -156,47 +178,13 @@ class BookDetailsPage extends StatelessWidget {
                 const SizedBox(height: 12),
                 SectionCard(
                   title: 'More Details',
-                  child: Column(
-                    children: <Widget>[
-                      _InfoRow(
-                        icon: book.medium.icon,
-                        label: 'Medium',
-                        value: book.medium.label,
-                      ),
-                      _InfoRow(
-                        icon: CupertinoIcons.percent,
-                        label: 'Reading Progress',
-                        value: '${book.progressPercent}%',
-                      ),
-                      _InfoRow(
-                        icon: CupertinoIcons.book,
-                        label: 'Page Count',
-                        value: book.pageCount > 0 ? '${book.pageCount} pages' : 'Not set',
-                      ),
-                      _InfoRow(
-                        icon: CupertinoIcons.calendar,
-                        label: 'Start Date',
-                        value: formatDateShort(book.startDateIso),
-                      ),
-                      _InfoRow(
-                        icon: CupertinoIcons.calendar_today,
-                        label: 'End Date',
-                        value: formatDateShort(book.endDateIso),
-                      ),
-                      _InfoRow(
-                        icon: CupertinoIcons.star_fill,
-                        label: 'Rating',
-                        value: book.rating > 0 ? '${book.rating}/5' : 'Not rated',
-                        isLast: true,
-                      ),
-                    ],
-                  ),
+                  child: _DetailsGrid(book: book),
                 ),
                 const SizedBox(height: 12),
                 SectionCard(
-                  title: 'Notes',
+                  title: 'Description',
                   child: Text(
-                    book.notes.trim().isEmpty ? 'No notes added yet.' : book.notes.trim(),
+                    book.notes.trim().isEmpty ? 'No description available.' : book.notes.trim(),
                     style: TextStyle(
                       fontSize: 14,
                       height: 1.3,
@@ -204,11 +192,87 @@ class BookDetailsPage extends StatelessWidget {
                     ),
                   ),
                 ),
+                const SizedBox(height: 12),
+                SectionCard(
+                  title: 'Highlights',
+                  child: _HighlightsList(highlights: book.highlights),
+                ),
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _ReadingProgressStatusCard extends StatelessWidget {
+  const _ReadingProgressStatusCard({required this.progressPercent});
+
+  final int progressPercent;
+
+  @override
+  Widget build(BuildContext context) {
+    final brightness = CupertinoTheme.of(context).brightness ?? Brightness.light;
+    final scheme = _statusScheme(BookStatus.reading, brightness);
+    final progress = (progressPercent.clamp(0, 100)) / 100.0;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(CupertinoIcons.book, size: 16, color: scheme.foreground),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Reading',
+                  style: TextStyle(
+                    color: scheme.foreground,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ),
+              Text(
+                '$progressPercent%',
+                style: TextStyle(
+                  color: scheme.foreground,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: Container(
+              height: 8,
+              color: scheme.foreground.withValues(alpha: 0.18),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: FractionallySizedBox(
+                  widthFactor: progress,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: scheme.foreground,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -257,6 +321,208 @@ class _StatusBadge extends StatelessWidget {
   }
 }
 
+class _DetailsGrid extends StatelessWidget {
+  const _DetailsGrid({required this.book});
+
+  final BookItem book;
+
+  @override
+  Widget build(BuildContext context) {
+    final tiles = <_DetailTileData>[
+      _DetailTileData(
+        icon: book.medium.icon,
+        label: 'Medium',
+        value: book.medium.label,
+      ),
+      _DetailTileData(
+        icon: CupertinoIcons.percent,
+        label: 'Progress',
+        value: '${book.progressPercent}%',
+      ),
+      _DetailTileData(
+        icon: CupertinoIcons.book,
+        label: 'Pages',
+        value: book.pageCount > 0 ? '${book.pageCount}' : 'Not set',
+      ),
+      _DetailTileData(
+        icon: CupertinoIcons.calendar,
+        label: 'Start Date',
+        value: formatDateShort(book.startDateIso),
+      ),
+      _DetailTileData(
+        icon: CupertinoIcons.calendar_today,
+        label: 'End Date',
+        value: formatDateShort(book.endDateIso),
+      ),
+      _DetailTileData(
+        icon: CupertinoIcons.star_fill,
+        label: 'Rating',
+        value: book.rating > 0 ? '${book.rating}/5' : 'Not rated',
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const spacing = 10.0;
+        final width = (constraints.maxWidth - spacing) / 2;
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: tiles
+              .map(
+                (tile) => SizedBox(
+                  width: width,
+                  child: _DetailTile(tile: tile),
+                ),
+              )
+              .toList(growable: false),
+        );
+      },
+    );
+  }
+}
+
+class _HighlightsList extends StatelessWidget {
+  const _HighlightsList({required this.highlights});
+
+  final List<String> highlights;
+
+  @override
+  Widget build(BuildContext context) {
+    if (highlights.isEmpty) {
+      return Text(
+        'No highlights for this book yet.',
+        style: TextStyle(
+          fontSize: 14,
+          color: CupertinoColors.secondaryLabel.resolveFrom(context),
+        ),
+      );
+    }
+
+    final label = CupertinoColors.label.resolveFrom(context);
+    final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
+    return Column(
+      children: List<Widget>.generate(highlights.length, (index) {
+        final isLast = index == highlights.length - 1;
+        return Padding(
+          padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: CupertinoColors.separator.resolveFrom(context).withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Icon(
+                    CupertinoIcons.quote_bubble,
+                    size: 14,
+                    color: secondary,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    highlights[index],
+                    style: TextStyle(
+                      fontSize: 13.5,
+                      height: 1.3,
+                      color: label,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _DetailTileData {
+  const _DetailTileData({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+}
+
+class _DetailTile extends StatelessWidget {
+  const _DetailTile({required this.tile});
+
+  final _DetailTileData tile;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: CupertinoColors.separator.resolveFrom(context).withValues(alpha: 0.25),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                width: 24,
+                height: 24,
+                decoration: BoxDecoration(
+                  color: CupertinoColors.systemBackground.resolveFrom(context),
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  tile.icon,
+                  size: 13,
+                  color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  tile.label,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            tile.value,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: CupertinoColors.label.resolveFrom(context),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 ({Color background, Color border, Color foreground}) _statusScheme(
   BookStatus status,
   Brightness brightness,
@@ -281,78 +547,5 @@ class _StatusBadge extends StatelessWidget {
         border: isDark ? const Color(0xFF7C6420) : const Color(0xFFE7D091),
         foreground: isDark ? const Color(0xFFF2CF67) : const Color(0xFF9A6A00),
       );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({
-    required this.icon,
-    required this.label,
-    required this.value,
-    this.isLast = false,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final bool isLast;
-
-  @override
-  Widget build(BuildContext context) {
-    final separator = CupertinoColors.separator.resolveFrom(context);
-    return Padding(
-      padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
-      child: Column(
-        children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                alignment: Alignment.center,
-                child: Icon(
-                  icon,
-                  size: 15,
-                  color: CupertinoColors.secondaryLabel.resolveFrom(context),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: CupertinoColors.secondaryLabel.resolveFrom(context),
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      value,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        color: CupertinoColors.label.resolveFrom(context),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          if (!isLast) ...<Widget>[
-            const SizedBox(height: 10),
-            Container(height: 1, color: separator.withValues(alpha: 0.25)),
-          ],
-        ],
-      ),
-    );
   }
 }

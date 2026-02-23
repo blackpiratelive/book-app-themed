@@ -61,8 +61,6 @@ class BookCard extends StatelessWidget {
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: CupertinoColors.label.resolveFrom(context),
-                        decoration:
-                            book.status == BookStatus.read ? TextDecoration.lineThrough : null,
                       ),
                     ),
                     const SizedBox(height: 3),

@@ -62,7 +62,7 @@ extension ReadingMediumX on ReadingMedium {
       case ReadingMedium.kindle:
         return 'Kindle';
       case ReadingMedium.physicalBook:
-        return 'Physical Book';
+        return 'Paperback';
       case ReadingMedium.mobile:
         return 'Mobile';
       case ReadingMedium.laptop:
@@ -75,7 +75,7 @@ extension ReadingMediumX on ReadingMedium {
       case ReadingMedium.kindle:
         return 'Kindle';
       case ReadingMedium.physicalBook:
-        return 'Physical';
+        return 'Paperback';
       case ReadingMedium.mobile:
         return 'Mobile';
       case ReadingMedium.laptop:
@@ -179,6 +179,7 @@ class BookItem {
     required this.startDateIso,
     required this.endDateIso,
     required this.createdAtIso,
+    this.highlights = const <String>[],
   });
 
   final String id;
@@ -194,6 +195,7 @@ class BookItem {
   final String? startDateIso;
   final String? endDateIso;
   final String createdAtIso;
+  final List<String> highlights;
 
   BookItem copyWith({
     String? id,
@@ -211,6 +213,7 @@ class BookItem {
     String? endDateIso,
     bool clearEndDate = false,
     String? createdAtIso,
+    List<String>? highlights,
   }) {
     return BookItem(
       id: id ?? this.id,
@@ -226,6 +229,7 @@ class BookItem {
       startDateIso: clearStartDate ? null : (startDateIso ?? this.startDateIso),
       endDateIso: clearEndDate ? null : (endDateIso ?? this.endDateIso),
       createdAtIso: createdAtIso ?? this.createdAtIso,
+      highlights: List<String>.unmodifiable(highlights ?? this.highlights),
     );
   }
 
@@ -261,6 +265,7 @@ class BookItem {
         'startDateIso': startDateIso,
         'endDateIso': endDateIso,
         'createdAtIso': createdAtIso,
+        'highlights': highlights,
       };
 
   static BookItem fromJson(Map<String, dynamic> json) {
@@ -290,6 +295,7 @@ class BookItem {
       createdAtIso: (json['createdAtIso'] as String?)?.trim().isNotEmpty == true
           ? (json['createdAtIso'] as String)
           : DateTime.now().toIso8601String(),
+      highlights: _asStringList(json['highlights']),
     );
   }
 
@@ -308,6 +314,7 @@ class BookItem {
       startDateIso: draft.startDateIso,
       endDateIso: draft.endDateIso,
       createdAtIso: DateTime.now().toIso8601String(),
+      highlights: const <String>[],
     );
   }
 }
@@ -327,4 +334,15 @@ int? _asInt(dynamic value) {
   if (value is double) return value.toInt();
   if (value is String) return int.tryParse(value.trim());
   return null;
+}
+
+List<String> _asStringList(dynamic value) {
+  if (value is List) {
+    return value
+        .whereType<String>()
+        .map((item) => item.trim())
+        .where((item) => item.isNotEmpty)
+        .toList(growable: false);
+  }
+  return const <String>[];
 }

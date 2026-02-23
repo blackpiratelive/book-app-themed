@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:book_app_themed/models/book.dart';
 import 'package:book_app_themed/services/backend_api_service.dart';
@@ -16,6 +17,8 @@ class BackendReloadResult {
 }
 
 class AppController extends ChangeNotifier {
+  static const String defaultBackendApiUrl = 'https://notes.blackpiratex.com';
+
   AppController({
     required AppStorageService storage,
     BackendApiService backendApi = const BackendApiService(),
@@ -65,7 +68,9 @@ class AppController extends ChangeNotifier {
       ..clear()
       ..addAll(snapshot.books);
     _isDarkMode = snapshot.isDarkMode;
-    _backendApiUrl = snapshot.backendApiUrl;
+    _backendApiUrl = snapshot.backendApiUrl.trim().isEmpty
+        ? defaultBackendApiUrl
+        : snapshot.backendApiUrl;
     _backendPassword = snapshot.backendPassword;
     _backendCachePrimed = snapshot.backendCachePrimed;
     _hasLocalBookChanges = snapshot.hasLocalBookChanges;
@@ -75,6 +80,16 @@ class AppController extends ChangeNotifier {
     }
     _isLoading = false;
     notifyListeners();
+
+    if (snapshot.backendApiUrl.trim().isEmpty) {
+      unawaited(
+        _storage.saveBackendConfig(
+          apiUrl: _backendApiUrl,
+          password: _backendPassword,
+          invalidateCache: false,
+        ),
+      );
+    }
 
     if (_shouldAutoFetchBackendOnLaunch) {
       unawaited(_autoFetchBackendOnLaunch());
@@ -105,9 +120,34 @@ class AppController extends ChangeNotifier {
   Future<void> updateBook(String bookId, BookDraft draft) async {
     final index = _books.indexWhere((b) => b.id == bookId);
     if (index < 0) return;
-    _books[index] = _books[index].copyWithDraft(draft);
+    final updated = _books[index].copyWithDraft(draft);
+    _books[index] = updated;
     notifyListeners();
     await _storage.saveBooks(_books);
+    if (_canPushBookUpdateToBackend(updated)) {
+      try {
+        await _backendApi.updateBook(
+          baseUrl: _backendApiUrl.trim(),
+          password: _backendPassword,
+          book: updated,
+        );
+        _hasLocalBookChanges = false;
+        _lastBackendSyncAtIso = DateTime.now().toIso8601String();
+        _lastBackendStatusMessage = 'Updated "${updated.title}" on backend.';
+        notifyListeners();
+        await _storage.saveBackendSyncState(
+          backendCachePrimed: _backendCachePrimed,
+          hasLocalBookChanges: false,
+          lastBackendSyncAtIso: _lastBackendSyncAtIso,
+          clearLastBackendSyncAt: _lastBackendSyncAtIso == null,
+        );
+        return;
+      } on BackendApiException {
+        // Keep local edit and mark cache as diverged from backend.
+        await _markLocalBookChanges();
+        rethrow;
+      }
+    }
     await _markLocalBookChanges();
   }
 
@@ -201,9 +241,46 @@ class AppController extends ChangeNotifier {
     }
     _selectedShelf = BookStatus.readingList;
     _lastBackendStatusMessage = 'Added "${added.title}" to Reading List.';
+    _backendCachePrimed = true;
+    _hasLocalBookChanges = false;
     notifyListeners();
     await _storage.saveBooks(_books);
+    await _storage.saveBackendSyncState(
+      backendCachePrimed: _backendCachePrimed,
+      hasLocalBookChanges: false,
+      lastBackendSyncAtIso: _lastBackendSyncAtIso,
+      clearLastBackendSyncAt: _lastBackendSyncAtIso == null,
+    );
     return added;
+  }
+
+  Future<BackendReloadResult> refreshFromBackendIfChanged() async {
+    final url = _backendApiUrl.trim();
+    if (url.isEmpty) {
+      throw const BackendApiException('Set a backend API URL in Settings first.');
+    }
+
+    final fetched = await _backendApi.fetchAllBooks(url);
+    final changed = !_booksEqual(_books, fetched);
+    if (!changed) {
+      _backendCachePrimed = true;
+      _lastBackendSyncAtIso = DateTime.now().toIso8601String();
+      _lastBackendStatusMessage = 'No changes found on backend.';
+      notifyListeners();
+      await _storage.saveBackendSyncState(
+        backendCachePrimed: true,
+        hasLocalBookChanges: _hasLocalBookChanges,
+        lastBackendSyncAtIso: _lastBackendSyncAtIso,
+        clearLastBackendSyncAt: _lastBackendSyncAtIso == null,
+      );
+      return const BackendReloadResult(bookCount: 0, message: 'No changes found on backend.');
+    }
+
+    return _applyFetchedBooks(
+      fetched,
+      messageOverride:
+          'Applied backend changes (${fetched.length} book${fetched.length == 1 ? '' : 's'}).',
+    );
   }
 
   Future<BackendReloadResult> forceReloadFromBackend({
@@ -221,32 +298,7 @@ class AppController extends ChangeNotifier {
 
     try {
       final fetched = await _backendApi.fetchAllBooks(url);
-      _books
-        ..clear()
-        ..addAll(fetched);
-      if (_books.isNotEmpty) {
-        final selectedExists = _books.any((b) => b.status == _selectedShelf);
-        if (!selectedExists) {
-          _selectedShelf = _books.first.status;
-        }
-      }
-
-      _backendCachePrimed = true;
-      _hasLocalBookChanges = false;
-      _lastBackendSyncAtIso = DateTime.now().toIso8601String();
-      notifyListeners();
-
-      await _storage.saveBooks(_books);
-      await _storage.saveBackendSyncState(
-        backendCachePrimed: true,
-        hasLocalBookChanges: false,
-        lastBackendSyncAtIso: _lastBackendSyncAtIso,
-      );
-
-      final result = BackendReloadResult(
-        bookCount: fetched.length,
-        message: 'Loaded ${fetched.length} book${fetched.length == 1 ? '' : 's'} from backend.',
-      );
+      final result = await _applyFetchedBooks(fetched);
       _setBackendBusy(false, message: result.message);
       return result;
     } catch (e) {
@@ -292,5 +344,51 @@ class AppController extends ChangeNotifier {
     } catch (_) {
       // Keep the cached local books if the backend is unavailable.
     }
+  }
+
+  bool _canPushBookUpdateToBackend(BookItem book) {
+    if (_backendApiUrl.trim().isEmpty || _backendPassword.trim().isEmpty) return false;
+    final id = book.id.trim().toUpperCase();
+    return id.startsWith('OL');
+  }
+
+  Future<BackendReloadResult> _applyFetchedBooks(
+    List<BookItem> fetched, {
+    String? messageOverride,
+  }) async {
+    _books
+      ..clear()
+      ..addAll(fetched);
+    if (_books.isNotEmpty) {
+      final selectedExists = _books.any((b) => b.status == _selectedShelf);
+      if (!selectedExists) {
+        _selectedShelf = _books.first.status;
+      }
+    }
+
+    _backendCachePrimed = true;
+    _hasLocalBookChanges = false;
+    _lastBackendSyncAtIso = DateTime.now().toIso8601String();
+    notifyListeners();
+
+    await _storage.saveBooks(_books);
+    await _storage.saveBackendSyncState(
+      backendCachePrimed: true,
+      hasLocalBookChanges: false,
+      lastBackendSyncAtIso: _lastBackendSyncAtIso,
+    );
+
+    return BackendReloadResult(
+      bookCount: fetched.length,
+      message: messageOverride ??
+          'Loaded ${fetched.length} book${fetched.length == 1 ? '' : 's'} from backend.',
+    );
+  }
+
+  bool _booksEqual(List<BookItem> a, List<BookItem> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    return jsonEncode(a.map((book) => book.toJson()).toList()) ==
+        jsonEncode(b.map((book) => book.toJson()).toList());
   }
 }

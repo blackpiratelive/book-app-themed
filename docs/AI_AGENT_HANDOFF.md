@@ -22,7 +22,7 @@ Domain model:
   - `BookItem`
   - `BookDraft`
   - `BookStatus` (`Reading`, `Read`, `Reading List`)
-  - `ReadingMedium` (`Kindle`, `Physical Book`, `Mobile`, `Laptop`)
+  - `ReadingMedium` (`Kindle`, `Paperback`, `Mobile`, `Laptop`)
 
 State and persistence:
 - `lib/state/app_controller.dart`: app state, filtering, CRUD, dark mode, persistence orchestration
@@ -118,19 +118,12 @@ Features:
 - Large hero cover image
 - Title and author display
 - Colored status badge row (replaced old Actions section)
-  - Distinct visual colors for:
-    - Read
-    - Reading
-    - Reading List
+  - When status is `Reading`, this row shows a reading progress card with progress bar + percentage
+  - Otherwise shows status badge
 - Side delete button in same row (per user request)
-- "More Details" section with icons for:
-  - Medium
-  - Reading progress %
-  - Page count
-  - Start date
-  - End date
-  - Rating
-- Notes section
+- "More Details" section displayed as a 2-column grid
+- "Description" section (renamed from Notes in details page UI)
+- Highlights section (shows backend highlights for the selected book, or empty state text)
 - Delete confirmation dialog
 
 Note:
@@ -186,7 +179,19 @@ Features:
 - Search/add flows show loading/status messages because responses may take time
 - Successful add inserts/updates the local cached list immediately and switches shelf to `Reading List`
 
-### 9. Settings Page
+### 9. Home Pull-To-Refresh (Backend Diff Sync)
+
+Implemented in:
+- `lib/pages/home_page.dart`
+- `lib/state/app_controller.dart`
+
+Behavior:
+- Home list supports pull-to-refresh (`CupertinoSliverRefreshControl`)
+- Pull refresh fetches `/api/books` and compares against local cached books
+- Only applies and saves the fetched payload if backend data changed
+- If no changes are found, local cache remains untouched and a sync status message is updated
+- Pull refresh is the primary manual way to refresh backend data from the home screen
+### 10. Settings Page
 
 Implemented in `lib/pages/settings_page.dart`.
 
@@ -200,7 +205,7 @@ Features:
   - Backend cache / local changes / last sync status rows
   - Confirmation dialog before force reload if local changes exist
 
-### 10. Dark Mode
+### 11. Dark Mode
 
 Implemented via `AppController` and `shared_preferences`.
 
@@ -209,7 +214,7 @@ Features:
 - Persists across app launches
 - `CupertinoApp` theme updates reactively via `AnimatedBuilder`
 
-### 11. Local Persistence (Books + Theme + Backend Sync Metadata)
+### 12. Local Persistence (Books + Theme + Backend Sync Metadata)
 
 Implemented in `lib/services/app_storage_service.dart`.
 
@@ -236,7 +241,7 @@ Backward compatibility:
 - Loader attempts `book_items_v2`, then falls back to `book_items_v1`
 - Legacy `isRead` boolean is mapped into new `BookStatus`
 
-### 12. Book Status and Filtering Model
+### 13. Book Status and Filtering Model
 
 Implemented in `lib/models/book.dart` and `lib/state/app_controller.dart`.
 
@@ -249,7 +254,7 @@ Filtering behavior:
 - Home page shows books only for selected shelf
 - Shelf selection is stored in controller runtime state (not currently persisted)
 
-### 13. Backend Read Sync (API -> Local Cache)
+### 14. Backend Sync + Caching Behavior
 
 Implemented in:
 - `lib/services/backend_api_service.dart`
@@ -258,7 +263,11 @@ Implemented in:
 Behavior:
 - Reads from backend using `GET /api/books` (see `docs/API_DOCS.md`)
 - Maps backend row schema into local `BookItem` model
+- Maps backend highlights into local `BookItem.highlights`
 - Caches fetched books locally in existing books storage key
+- First install / first app open:
+  - app uses prefilled backend URL (`https://notes.blackpiratex.com`) as the default controller backend URL
+  - auto-fetches from backend on first launch if cache is not primed
 - Auto-fetches on app startup only when:
   - backend API URL is configured
   - backend cache is not yet primed
@@ -266,15 +275,16 @@ Behavior:
 - Does **not** auto-fetch on subsequent opens once cache is primed
 - Local add/edit/delete marks the cache as having local changes (dirty), which pauses auto-refresh
 - User can always override via Settings -> `Force Reload From API`
+- Editing an existing backend-backed book (OpenLibrary `OL...` id) attempts immediate remote sync via `/api/books` `POST` `action:"update"` after local save
+- If backend edit sync fails, the local edit is kept and the cache is marked dirty
 
 Important:
-- Current implementation is read-sync only (pull from backend)
-- Local book CRUD is not pushed back to backend yet
+- Current implementation is mostly local-first, with selective backend writes:
+  - backend search add (`action:"add"`) is wired
+  - backend edit update (`action:"update"`) is wired for backend-backed books (`OL...` ids)
+  - local-only/manual books are not automatically created/updated on backend
 
-Exception:
-- Backend search add (`/api/books` `action:add`) is now wired from the app for adding books to the Reading List.
-
-### 14. CI: Android APK Build in GitHub Actions
+### 15. CI: Android APK Build in GitHub Actions
 
 Workflow:
 - `.github/workflows/android-build.yml`
@@ -303,6 +313,7 @@ These changes were specifically requested by the user and are already applied:
 - Bottom floating blurred shelf selector (instead of top segmented bar)
 - Bottom floating shelf selector restyled to dark segmented capsule (Apple Fitness-style visual direction)
 - Bottom floating shelf selector now adapts visually for both light and dark themes (same segmented capsule style)
+- Read shelf titles are no longer struck through in book cards
 - Shelf names changed to:
   - Reading
   - Read

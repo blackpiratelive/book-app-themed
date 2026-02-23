@@ -14,7 +14,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
-  static const String _defaultApiUrl = 'https://notes.blackpiratex.com';
+  static const String _defaultApiUrl = AppController.defaultBackendApiUrl;
 
   late final TextEditingController _apiController;
   late String _password;
