@@ -220,7 +220,8 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = _statusScheme(status, CupertinoTheme.of(context).brightness);
+    final brightness = CupertinoTheme.of(context).brightness ?? Brightness.light;
+    final scheme = _statusScheme(status, brightness);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
