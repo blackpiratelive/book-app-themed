@@ -58,7 +58,69 @@ def patch_gradle() -> None:
             rf"\1{TARGET_PACKAGE}\3",
             text,
         )
+        if path.suffix == ".kts":
+            text = patch_kotlin_gradle_signing(text)
+        else:
+            text = patch_groovy_gradle_signing(text)
         path.write_text(text)
+
+
+def patch_kotlin_gradle_signing(text: str) -> str:
+    marker = "// CI signing config (injected)"
+    if marker not in text:
+        signing_block = f"""
+    {marker}
+    signingConfigs {{
+        create("release") {{
+            val keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+            if (!keystorePath.isNullOrBlank()) {{
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+            }}
+        }}
+    }}
+
+"""
+        text = re.sub(r"(\n\s*buildTypes\s*\{)", signing_block + r"\1", text, count=1)
+
+    text = text.replace(
+        'signingConfig = signingConfigs.getByName("debug")',
+        'signingConfig = signingConfigs.getByName("release")',
+    )
+    return text
+
+
+def patch_groovy_gradle_signing(text: str) -> str:
+    marker = "// CI signing config (injected)"
+    if marker not in text:
+        signing_block = f"""
+    {marker}
+    signingConfigs {{
+        release {{
+            def keystorePath = System.getenv("ANDROID_KEYSTORE_PATH")
+            if (keystorePath) {{
+                storeFile file(keystorePath)
+                storePassword System.getenv("ANDROID_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ANDROID_KEY_ALIAS")
+                keyPassword System.getenv("ANDROID_KEY_PASSWORD")
+            }}
+        }}
+    }}
+
+"""
+        text = re.sub(r"(\n\s*buildTypes\s*\{)", signing_block + r"\1", text, count=1)
+
+    text = text.replace(
+        "signingConfig = signingConfigs.debug",
+        "signingConfig = signingConfigs.release",
+    )
+    text = text.replace(
+        "signingConfig signingConfigs.debug",
+        "signingConfig signingConfigs.release",
+    )
+    return text
 
 
 def patch_main_activity() -> None:

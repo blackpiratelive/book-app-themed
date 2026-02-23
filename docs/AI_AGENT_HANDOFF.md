@@ -355,12 +355,29 @@ Behavior:
   - app label `BlackPirateX Book tracker`
   - `INTERNET` permission
   - `MainActivity` package path/namespace alignment
+  - release signing config injection (so CI uses repo keystore secrets instead of default debug signing)
 - Renders Android launcher icons from the SVG app icon source using `librsvg2-bin` (`rsvg-convert`)
+- Validates required signing secrets are present, decodes the release keystore into `android/app/ci-release.jks`, and verifies alias/password with `keytool`
 - Runs:
   - `flutter pub get`
   - `flutter analyze`
   - `flutter build apk --release`
 - Uploads APK artifact
+
+Required GitHub Secrets for signed release APKs:
+- `ANDROID_KEYSTORE_BASE64` (base64-encoded `.jks`)
+- `ANDROID_KEYSTORE_PASSWORD`
+- `ANDROID_KEY_ALIAS`
+- `ANDROID_KEY_PASSWORD`
+
+Signing implementation notes:
+- Android platform files are regenerated on every CI run, so signing config is patched into the generated `android/app/build.gradle(.kts)` by `scripts/configure_generated_android.py`.
+- Workflow includes debug steps that print:
+  - keystore file presence/size
+  - `keytool` alias listing (first lines only)
+  - generated Gradle signing section
+  - signing-related Gradle lines on failure
+- Do not rotate the keystore/alias for updates unless intentionally changing app signing strategy (users will not be able to update otherwise).
 
 Note:
 - Legacy Gradle workflow for the previous non-Flutter app was removed.
@@ -391,6 +408,7 @@ These changes were specifically requested by the user and are already applied:
 - Keep `flutter analyze` clean; recent backend/settings implementation required a `mounted` guard in async settings actions (`use_build_context_synchronously` lint).
 - `BookSearchPage` async flows should avoid `return` inside `finally`; use `if (mounted) { setState(...) }` guards instead (CI flags `control_flow_in_finally`).
 - Because Android platform files are generated in CI (`flutter create`), the CI workflow now patches `android/app/src/main/AndroidManifest.xml` to add `INTERNET` permission so release APKs can access backend APIs and cover images.
+- Because Android platform files are generated in CI (`flutter create`), CI also patches the generated Gradle app module to inject release signing config from environment variables (`ANDROID_KEYSTORE_*`) before `flutter build apk --release`.
 
 Follow these unless the user explicitly changes direction:
 
