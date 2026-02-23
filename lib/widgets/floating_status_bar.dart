@@ -42,27 +42,85 @@ class FloatingStatusBar extends StatelessWidget {
             ),
             child: Padding(
               padding: const EdgeInsets.all(6),
-              child: CupertinoSlidingSegmentedControl<BookStatus>(
-                groupValue: selected,
-                onValueChanged: (value) {
-                  if (value != null) onChanged(value);
-                },
-                children: const <BookStatus, Widget>{
-                  BookStatus.reading: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                    child: Text('Reading', style: TextStyle(fontSize: 13)),
+              child: Row(
+                children: <Widget>[
+                  _ShelfButton(
+                    status: BookStatus.reading,
+                    selected: selected == BookStatus.reading,
+                    onTap: () => onChanged(BookStatus.reading),
                   ),
-                  BookStatus.read: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                    child: Text('Read', style: TextStyle(fontSize: 13)),
+                  const SizedBox(width: 6),
+                  _ShelfButton(
+                    status: BookStatus.read,
+                    selected: selected == BookStatus.read,
+                    onTap: () => onChanged(BookStatus.read),
                   ),
-                  BookStatus.readingList: Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
-                    child: Text('Reading List', style: TextStyle(fontSize: 13)),
+                  const SizedBox(width: 6),
+                  _ShelfButton(
+                    status: BookStatus.readingList,
+                    selected: selected == BookStatus.readingList,
+                    onTap: () => onChanged(BookStatus.readingList),
                   ),
-                },
+                ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ShelfButton extends StatelessWidget {
+  const _ShelfButton({
+    required this.status,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final BookStatus status;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final labelColor = selected
+        ? CupertinoColors.white
+        : CupertinoColors.label.resolveFrom(context);
+    final bg = selected
+        ? CupertinoColors.activeBlue
+        : CupertinoColors.systemFill.resolveFrom(context).withValues(alpha: 0.28);
+
+    return Expanded(
+      child: CupertinoButton(
+        padding: EdgeInsets.zero,
+        minimumSize: const Size(0, 0),
+        onPressed: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          height: 58,
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(16),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Icon(status.icon, size: 20, color: labelColor),
+              const SizedBox(height: 4),
+              Text(
+                status.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: labelColor,
+                ),
+              ),
+            ],
           ),
         ),
       ),

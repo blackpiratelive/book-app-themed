@@ -87,7 +87,6 @@ class BookDetailsPage extends StatelessWidget {
             ),
           ),
           child: SafeArea(
-            top: false,
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: <Widget>[
@@ -122,41 +121,43 @@ class BookDetailsPage extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                SectionCard(
-                  title: 'Actions',
-                  child: Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: CupertinoButton.filled(
-                          padding: const EdgeInsets.symmetric(vertical: 10),
-                          onPressed: () => _editBook(context, book),
-                          child: const Text('Edit Book'),
-                        ),
+                Row(
+                  children: <Widget>[
+                    Expanded(
+                      child: _StatusBadge(status: book.status),
+                    ),
+                    const SizedBox(width: 10),
+                    CupertinoButton(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      color: CupertinoColors.systemRed.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(12),
+                      onPressed: () => _deleteBook(context, book),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          Icon(
+                            CupertinoIcons.delete_solid,
+                            color: CupertinoColors.systemRed,
+                            size: 16,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            'Delete',
+                            style: TextStyle(
+                              color: CupertinoColors.systemRed,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
-                      const SizedBox(width: 10),
-                      CupertinoButton(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                        color: CupertinoColors.systemRed.withValues(alpha: 0.14),
-                        borderRadius: BorderRadius.circular(12),
-                        onPressed: () => _deleteBook(context, book),
-                        child: const Icon(
-                          CupertinoIcons.delete_solid,
-                          color: CupertinoColors.systemRed,
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 SectionCard(
                   title: 'More Details',
                   child: Column(
                     children: <Widget>[
-                      _InfoRow(
-                        icon: book.status.icon,
-                        label: 'Status',
-                        value: book.status.label,
-                      ),
                       _InfoRow(
                         icon: book.medium.icon,
                         label: 'Medium',
@@ -209,6 +210,76 @@ class BookDetailsPage extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class _StatusBadge extends StatelessWidget {
+  const _StatusBadge({required this.status});
+
+  final BookStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = _statusScheme(status, CupertinoTheme.of(context).brightness);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: scheme.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: scheme.border),
+      ),
+      child: Row(
+        children: <Widget>[
+          Icon(status.icon, size: 16, color: scheme.foreground),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              status.label,
+              style: TextStyle(
+                color: scheme.foreground,
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+            ),
+          ),
+          Text(
+            'Status',
+            style: TextStyle(
+              color: scheme.foreground.withValues(alpha: 0.8),
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+({Color background, Color border, Color foreground}) _statusScheme(
+  BookStatus status,
+  Brightness brightness,
+) {
+  final isDark = brightness == Brightness.dark;
+  switch (status) {
+    case BookStatus.read:
+      return (
+        background: isDark ? const Color(0xFF173523) : const Color(0xFFE8F8EE),
+        border: isDark ? const Color(0xFF2E7D47) : const Color(0xFFA8E0B6),
+        foreground: isDark ? const Color(0xFF7CE3A0) : const Color(0xFF1E8E46),
+      );
+    case BookStatus.reading:
+      return (
+        background: isDark ? const Color(0xFF132A45) : const Color(0xFFEAF3FF),
+        border: isDark ? const Color(0xFF2D5F9D) : const Color(0xFFAECDF8),
+        foreground: isDark ? const Color(0xFF8CC2FF) : const Color(0xFF1768C5),
+      );
+    case BookStatus.readingList:
+      return (
+        background: isDark ? const Color(0xFF3A2E12) : const Color(0xFFF7EFD8),
+        border: isDark ? const Color(0xFF7C6420) : const Color(0xFFE7D091),
+        foreground: isDark ? const Color(0xFFF2CF67) : const Color(0xFF9A6A00),
+      );
   }
 }
 

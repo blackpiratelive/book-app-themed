@@ -177,7 +177,6 @@ class _BookEditorPageState extends State<BookEditorPage> {
         ),
       ),
       child: SafeArea(
-        top: false,
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: <Widget>[
