@@ -116,6 +116,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   Future<void> _forceReload() async {
     await _persistBackendConfig();
+    if (!mounted) return;
 
     if (widget.controller.hasLocalBookChanges) {
       final confirmed = await showCupertinoDialog<bool>(

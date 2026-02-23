@@ -163,7 +163,7 @@ class BackendApiService {
     final normalized = parsedBase.path.endsWith('/')
         ? parsedBase.path.substring(0, parsedBase.path.length - 1)
         : parsedBase.path;
-    final fullPath = '${normalized}${path.startsWith('/') ? path : '/$path'}';
+    final fullPath = '$normalized${path.startsWith('/') ? path : '/$path'}';
     return parsedBase.replace(
       path: fullPath,
       queryParameters: queryParameters,
