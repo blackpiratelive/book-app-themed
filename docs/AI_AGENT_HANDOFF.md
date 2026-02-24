@@ -27,9 +27,9 @@ Domain model:
   - `ReadingMedium` (`Kindle`, `Paperback`, `Mobile`, `Laptop`)
 
 State and persistence:
-- `lib/state/app_controller.dart`: app state, filtering, CRUD, dark mode, frontend auth session UI state, persistence orchestration
-- `lib/services/app_storage_service.dart`: `shared_preferences` load/save (books, settings, backend config, onboarding, frontend auth session)
-- `lib/services/backend_api_service.dart`: backend HTTP client (`/api/public`, `/api/books`) + server-row mapping
+- `lib/state/app_controller.dart`: app state, filtering, CRUD, dark mode, frontend auth session UI state, backend-mode switching (guest legacy API vs account v1 API), persistence orchestration
+- `lib/services/app_storage_service.dart`: `shared_preferences` load/save (books, settings, backend config/token, onboarding, frontend auth session)
+- `lib/services/backend_api_service.dart`: backend HTTP client for both legacy (`/api/public`, `/api/books`) and account v1 (`/api/v1/*`) APIs, including v1 cover upload
 - `lib/services/book_discovery_service.dart`: direct OpenLibrary + Google Books search (local add flow)
 - `lib/services/local_media_service.dart`: device image picker + local cover file storage
 - `lib/services/local_backup_service.dart`: zip import/export of local app data + local cover image files
@@ -248,11 +248,13 @@ Features:
   - Shows `Log Out` button when logged in with an account
 - Backend section (wired)
   - Backend API URL field (persisted)
-  - Password dialog / local password storage (persisted in `shared_preferences`)
+  - Credential dialog / local credential storage (legacy admin password OR Firebase ID token for v1)
   - `Test Connection` button
   - `Force Reload From API` button
   - Backend cache / local changes / last sync status rows
   - Confirmation dialog before force reload if local changes exist
+  - In logged-in mode, backend URL is fixed to `https://book-tracker-backend-inky.vercel.app`
+  - In logged-in mode, legacy backend search/add endpoints are unavailable and user is directed to direct search/manual add flows
 - Local Data (Guest Mode) section
   - Export local backup to zip (written to app storage, then opens OS share sheet on mobile)
   - Import local backup from zip (replaces local data)
@@ -279,6 +281,20 @@ Behavior:
 - No backend auth calls are made yet (placeholder frontend flow only)
 - Selected auth session is persisted locally so the auth gate is skipped on later launches until logout
 - Existing onboarding still appears after auth if it has not been completed yet
+- Important: auth screen is still frontend-only; for backend v1 sync the app currently expects a Firebase ID token to be pasted in Settings (Firebase SDK sign-in is not yet integrated)
+
+### 14. Dual Backend Routing (Guest Legacy API vs Logged-in v1 API)
+
+Behavior:
+- Guest mode continues using the legacy backend (`notes.blackpiratex.com`) and legacy endpoints
+- Logged-in mode uses the new v1 backend at `https://book-tracker-backend-inky.vercel.app`
+- Logged-in mode backend sync requires a Firebase ID token (manually pasted in Settings for now)
+- Logged-in mode supports:
+  - full book fetch via `/api/v1/books`
+  - book upsert via `PUT /api/v1/books/:id`
+  - delete via `DELETE /api/v1/books/:id`
+  - cover upload for locally picked images via `/api/v1/uploads/cover`
+- Legacy backend search (`/api/search`) is guest-only; account mode should use direct OpenLibrary/Google Books search
 
 ### 13. Local Backup Import/Export (Books + Settings + Local Cover Files)
 

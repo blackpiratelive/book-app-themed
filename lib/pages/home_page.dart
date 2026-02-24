@@ -23,13 +23,18 @@ class HomePage extends StatelessWidget {
       builder: (sheetContext) {
         return CupertinoActionSheet(
           title: const Text('Add Book'),
-          message: const Text('Choose how you want to add a book.'),
+          message: Text(
+            controller.usesAccountBackend
+                ? 'Choose how you want to add a book. The new account backend does not support the legacy library search endpoint.'
+                : 'Choose how you want to add a book.',
+          ),
           actions: <Widget>[
-            CupertinoActionSheetAction(
-              onPressed: () =>
-                  Navigator.of(sheetContext).pop(_AddBookChoice.search),
-              child: const Text('Search Library (API)'),
-            ),
+            if (!controller.usesAccountBackend)
+              CupertinoActionSheetAction(
+                onPressed: () =>
+                    Navigator.of(sheetContext).pop(_AddBookChoice.search),
+                child: const Text('Search Library (API)'),
+              ),
             CupertinoActionSheetAction(
               onPressed: () =>
                   Navigator.of(sheetContext).pop(_AddBookChoice.directSearch),

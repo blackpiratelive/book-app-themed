@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:book_app_themed/models/book.dart';
 import 'package:book_app_themed/services/book_discovery_service.dart';
@@ -41,6 +42,8 @@ class BackendReloadResult {
 
 class AppController extends ChangeNotifier {
   static const String defaultBackendApiUrl = 'https://notes.blackpiratex.com';
+  static const String accountBackendApiUrl =
+      'https://book-tracker-backend-inky.vercel.app';
 
   AppController({
     required AppStorageService storage,
@@ -95,7 +98,15 @@ class AppController extends ChangeNotifier {
   BookStatus get selectedShelf => _selectedShelf;
   List<BookItem> get books => List<BookItem>.unmodifiable(_books);
   String get backendApiUrl => _backendApiUrl;
+  String get effectiveBackendApiUrl => isLoggedIn
+      ? accountBackendApiUrl
+      : (_backendApiUrl.trim().isEmpty ? defaultBackendApiUrl : _backendApiUrl);
   String get backendPassword => _backendPassword;
+  String get backendCredentialLabel =>
+      isLoggedIn ? 'Firebase ID Token' : 'Backend Password';
+  String get backendCredentialPlaceholder =>
+      isLoggedIn ? 'Paste Firebase ID token' : 'Enter admin password';
+  bool get usesAccountBackend => isLoggedIn;
   bool get backendConfigured => _backendApiUrl.trim().isNotEmpty;
   bool get backendCachePrimed => _backendCachePrimed;
   bool get hasLocalBookChanges => _hasLocalBookChanges;
@@ -174,6 +185,8 @@ class AppController extends ChangeNotifier {
     _authSessionType = AppAuthSessionType.guest;
     _authDisplayName = 'Guest';
     _authEmail = '';
+    _backendCachePrimed = false;
+    _lastBackendSyncAtIso = null;
     notifyListeners();
     await _persistAuthState();
   }
@@ -185,6 +198,8 @@ class AppController extends ChangeNotifier {
     _authSessionType = AppAuthSessionType.account;
     _authDisplayName = displayName.trim();
     _authEmail = email.trim();
+    _backendCachePrimed = false;
+    _lastBackendSyncAtIso = null;
     notifyListeners();
     await _persistAuthState();
   }
@@ -193,15 +208,29 @@ class AppController extends ChangeNotifier {
     _authSessionType = AppAuthSessionType.none;
     _authDisplayName = '';
     _authEmail = '';
+    _backendCachePrimed = false;
+    _lastBackendSyncAtIso = null;
     notifyListeners();
     await _persistAuthState();
   }
 
   Future<void> addBook(BookDraft draft) async {
-    _books.insert(0, BookItem.fromDraft(draft));
+    var created = BookItem.fromDraft(draft);
+    if (usesAccountBackend) {
+      created = await _prepareBookForAccountBackend(created);
+    }
+    _books.insert(0, created);
     _selectedShelf = draft.status;
     notifyListeners();
     await _storage.saveBooks(_books);
+    if (usesAccountBackend) {
+      try {
+        await _syncBookToActiveBackend(created);
+      } on BackendApiException {
+        // Local save already completed; keep app usable and sync later.
+      }
+      return;
+    }
     await _markLocalBookChanges();
   }
 
@@ -244,19 +273,48 @@ class AppController extends ChangeNotifier {
     final index = _books.indexWhere((b) => b.id == bookId);
     if (index < 0) return;
     final updated = _books[index].copyWithDraft(draft);
-    _books[index] = updated;
+    final prepared = usesAccountBackend
+        ? await _prepareBookForAccountBackend(updated)
+        : updated;
+    _books[index] = prepared;
     notifyListeners();
     await _storage.saveBooks(_books);
-    if (_canPushBookUpdateToBackend(updated)) {
+    if (usesAccountBackend) {
+      try {
+        final saved = await _backendApi.upsertBookV1(
+          baseUrl: effectiveBackendApiUrl,
+          idToken: _backendPassword,
+          book: prepared,
+        );
+        _books[index] = saved;
+        _hasLocalBookChanges = false;
+        _lastBackendSyncAtIso = DateTime.now().toIso8601String();
+        _lastBackendStatusMessage =
+            'Updated "${saved.title}" on account backend.';
+        notifyListeners();
+        await _storage.saveBooks(_books);
+        await _storage.saveBackendSyncState(
+          backendCachePrimed: _backendCachePrimed,
+          hasLocalBookChanges: false,
+          lastBackendSyncAtIso: _lastBackendSyncAtIso,
+          clearLastBackendSyncAt: _lastBackendSyncAtIso == null,
+        );
+        return;
+      } on BackendApiException {
+        await _markLocalBookChanges();
+        rethrow;
+      }
+    }
+    if (_canPushBookUpdateToBackend(prepared)) {
       try {
         await _backendApi.updateBook(
-          baseUrl: _backendApiUrl.trim(),
+          baseUrl: effectiveBackendApiUrl,
           password: _backendPassword,
-          book: updated,
+          book: prepared,
         );
         _hasLocalBookChanges = false;
         _lastBackendSyncAtIso = DateTime.now().toIso8601String();
-        _lastBackendStatusMessage = 'Updated "${updated.title}" on backend.';
+        _lastBackendStatusMessage = 'Updated "${prepared.title}" on backend.';
         notifyListeners();
         await _storage.saveBackendSyncState(
           backendCachePrimed: _backendCachePrimed,
@@ -275,9 +333,34 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> deleteBook(String bookId) async {
+    final deletedBook = bookById(bookId);
     _books.removeWhere((b) => b.id == bookId);
     notifyListeners();
     await _storage.saveBooks(_books);
+    if (usesAccountBackend && deletedBook != null) {
+      try {
+        await _backendApi.deleteBookV1(
+          baseUrl: effectiveBackendApiUrl,
+          idToken: _backendPassword,
+          bookId: deletedBook.id,
+        );
+        _hasLocalBookChanges = false;
+        _lastBackendSyncAtIso = DateTime.now().toIso8601String();
+        _lastBackendStatusMessage =
+            'Deleted "${deletedBook.title}" on account backend.';
+        notifyListeners();
+        await _storage.saveBackendSyncState(
+          backendCachePrimed: _backendCachePrimed,
+          hasLocalBookChanges: false,
+          lastBackendSyncAtIso: _lastBackendSyncAtIso,
+          clearLastBackendSyncAt: _lastBackendSyncAtIso == null,
+        );
+        return;
+      } on BackendApiException {
+        await _markLocalBookChanges();
+        return;
+      }
+    }
     await _markLocalBookChanges();
   }
 
@@ -297,10 +380,37 @@ class AppController extends ChangeNotifier {
     notifyListeners();
     await _storage.saveBooks(_books);
 
+    if (usesAccountBackend) {
+      try {
+        final synced = await _backendApi.upsertBookV1(
+          baseUrl: effectiveBackendApiUrl,
+          idToken: _backendPassword,
+          book: updated,
+        );
+        _books[index] = synced;
+        _hasLocalBookChanges = false;
+        _lastBackendSyncAtIso = DateTime.now().toIso8601String();
+        _lastBackendStatusMessage =
+            'Updated highlights for "${synced.title}" on account backend.';
+        notifyListeners();
+        await _storage.saveBooks(_books);
+        await _storage.saveBackendSyncState(
+          backendCachePrimed: _backendCachePrimed,
+          hasLocalBookChanges: false,
+          lastBackendSyncAtIso: _lastBackendSyncAtIso,
+          clearLastBackendSyncAt: _lastBackendSyncAtIso == null,
+        );
+        return;
+      } on BackendApiException {
+        await _markLocalBookChanges();
+        rethrow;
+      }
+    }
+
     if (_canPushBookUpdateToBackend(updated)) {
       try {
         await _backendApi.updateBookHighlights(
-          baseUrl: _backendApiUrl.trim(),
+          baseUrl: effectiveBackendApiUrl,
           password: _backendPassword,
           bookId: updated.id,
           highlights: updated.highlights,
@@ -368,7 +478,9 @@ class AppController extends ChangeNotifier {
     required String apiUrl,
     required String password,
   }) async {
-    final normalizedUrl = apiUrl.trim();
+    final normalizedUrl = usesAccountBackend
+        ? accountBackendApiUrl
+        : apiUrl.trim();
     final urlChanged = normalizedUrl != _backendApiUrl.trim();
     final passwordChanged = password != _backendPassword;
     if (!urlChanged && !passwordChanged) return;
@@ -392,14 +504,15 @@ class AppController extends ChangeNotifier {
     String? apiUrl,
     String? password,
   }) async {
-    final url = (apiUrl ?? _backendApiUrl).trim();
+    final url = usesAccountBackend
+        ? accountBackendApiUrl
+        : (apiUrl ?? _backendApiUrl).trim();
     final pw = password ?? _backendPassword;
     _setBackendBusy(true, message: 'Testing backend connection...');
     try {
-      final result = await _backendApi.testConnection(
-        baseUrl: url,
-        password: pw,
-      );
+      final result = usesAccountBackend
+          ? await _backendApi.testConnectionV1(baseUrl: url, idToken: pw)
+          : await _backendApi.testConnection(baseUrl: url, password: pw);
       _setBackendBusy(false, message: result.message);
       return result;
     } catch (e) {
@@ -412,7 +525,12 @@ class AppController extends ChangeNotifier {
   }
 
   Future<List<BackendSearchBookResult>> searchBackendBooks(String query) async {
-    final url = _backendApiUrl.trim();
+    if (usesAccountBackend) {
+      throw const BackendApiException(
+        'This account backend does not provide /api/search. Use "Search OpenLibrary + Google Books".',
+      );
+    }
+    final url = effectiveBackendApiUrl.trim();
     if (url.isEmpty) {
       throw const BackendApiException(
         'Set a backend API URL in Settings first.',
@@ -422,7 +540,12 @@ class AppController extends ChangeNotifier {
   }
 
   Future<BookItem> addBackendBookToReadingList({required String olid}) async {
-    final url = _backendApiUrl.trim();
+    if (usesAccountBackend) {
+      throw const BackendApiException(
+        'This account backend does not support the legacy add-from-backend search flow. Use "Search OpenLibrary + Google Books" or Add Manually.',
+      );
+    }
+    final url = effectiveBackendApiUrl.trim();
     if (url.isEmpty) {
       throw const BackendApiException(
         'Set a backend API URL in Settings first.',
@@ -463,14 +586,20 @@ class AppController extends ChangeNotifier {
   }
 
   Future<BackendReloadResult> refreshFromBackendIfChanged() async {
-    final url = _backendApiUrl.trim();
+    final url = effectiveBackendApiUrl.trim();
     if (url.isEmpty) {
       throw const BackendApiException(
         'Set a backend API URL in Settings first.',
       );
     }
 
-    final fetched = await _backendApi.fetchAllBooks(url);
+    final fetched = usesAccountBackend
+        ? await _backendApi.fetchAllBooksV1(
+            baseUrl: url,
+            idToken: _backendPassword,
+            includeDeleted: false,
+          )
+        : await _backendApi.fetchAllBooks(url);
     final changed = !_booksEqual(_books, fetched);
     if (!changed) {
       _backendCachePrimed = true;
@@ -499,7 +628,7 @@ class AppController extends ChangeNotifier {
   Future<BackendReloadResult> forceReloadFromBackend({
     bool userInitiated = true,
   }) async {
-    final url = _backendApiUrl.trim();
+    final url = effectiveBackendApiUrl.trim();
     if (url.isEmpty) {
       throw const BackendApiException(
         'Set a backend API URL in Settings first.',
@@ -514,7 +643,13 @@ class AppController extends ChangeNotifier {
     );
 
     try {
-      final fetched = await _backendApi.fetchAllBooks(url);
+      final fetched = usesAccountBackend
+          ? await _backendApi.fetchAllBooksV1(
+              baseUrl: url,
+              idToken: _backendPassword,
+              includeDeleted: false,
+            )
+          : await _backendApi.fetchAllBooks(url);
       final result = await _applyFetchedBooks(fetched);
       _setBackendBusy(false, message: result.message);
       return result;
@@ -530,7 +665,8 @@ class AppController extends ChangeNotifier {
   }
 
   bool get _shouldAutoFetchBackendOnLaunch {
-    if (_backendApiUrl.trim().isEmpty) return false;
+    if (effectiveBackendApiUrl.trim().isEmpty) return false;
+    if (usesAccountBackend && _backendPassword.trim().isEmpty) return false;
     if (_hasLocalBookChanges) return false;
     if (_backendCachePrimed) return false;
     return true;
@@ -566,6 +702,9 @@ class AppController extends ChangeNotifier {
   }
 
   bool _canPushBookUpdateToBackend(BookItem book) {
+    if (usesAccountBackend) {
+      return _backendPassword.trim().isNotEmpty;
+    }
     if (_backendApiUrl.trim().isEmpty || _backendPassword.trim().isEmpty) {
       return false;
     }
@@ -670,5 +809,74 @@ class AppController extends ChangeNotifier {
       return uri.scheme == 'file';
     }
     return path.startsWith('/');
+  }
+
+  Future<void> _syncBookToActiveBackend(BookItem book) async {
+    if (usesAccountBackend) {
+      if (_backendPassword.trim().isEmpty) {
+        await _markLocalBookChanges();
+        throw const BackendApiException(
+          'Logged-in mode uses the new Firebase backend. Paste a Firebase ID token in Settings to sync.',
+        );
+      }
+      try {
+        final saved = await _backendApi.upsertBookV1(
+          baseUrl: effectiveBackendApiUrl,
+          idToken: _backendPassword,
+          book: book,
+        );
+        final index = _books.indexWhere((b) => b.id == book.id);
+        if (index >= 0) {
+          _books[index] = saved;
+        }
+        _backendCachePrimed = true;
+        _hasLocalBookChanges = false;
+        _lastBackendSyncAtIso = DateTime.now().toIso8601String();
+        _lastBackendStatusMessage =
+            'Saved "${saved.title}" to account backend.';
+        notifyListeners();
+        await _storage.saveBooks(_books);
+        await _storage.saveBackendSyncState(
+          backendCachePrimed: _backendCachePrimed,
+          hasLocalBookChanges: false,
+          lastBackendSyncAtIso: _lastBackendSyncAtIso,
+          clearLastBackendSyncAt: _lastBackendSyncAtIso == null,
+        );
+        return;
+      } on BackendApiException {
+        await _markLocalBookChanges();
+        rethrow;
+      }
+    }
+  }
+
+  Future<BookItem> _prepareBookForAccountBackend(BookItem book) async {
+    if (!usesAccountBackend) return book;
+    final coverPath = book.coverUrl.trim();
+    if (!_isLocalCoverPath(coverPath)) return book;
+    if (_backendPassword.trim().isEmpty) return book;
+
+    try {
+      final file = _localFileFromPath(coverPath);
+      if (file == null) return book;
+      final uploaded = await _backendApi.uploadCoverImageV1(
+        baseUrl: effectiveBackendApiUrl,
+        idToken: _backendPassword,
+        file: file,
+      );
+      return book.copyWith(coverUrl: uploaded.url);
+    } catch (_) {
+      return book;
+    }
+  }
+
+  File? _localFileFromPath(String raw) {
+    if (raw.trim().isEmpty) return null;
+    final uri = Uri.tryParse(raw);
+    if (uri != null && uri.scheme == 'file') {
+      return File(uri.toFilePath());
+    }
+    if (raw.startsWith('/')) return File(raw);
+    return null;
   }
 }

@@ -50,21 +50,24 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _openPasswordDialog() async {
     final controller = TextEditingController(text: _password);
     var draft = _password;
+    final isAccountMode = widget.controller.usesAccountBackend;
     final next = await showCupertinoDialog<String>(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return CupertinoAlertDialog(
-              title: const Text('Backend Password'),
+              title: Text(
+                isAccountMode ? 'Firebase ID Token' : 'Backend Password',
+              ),
               content: Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: CupertinoTextField(
                   controller: controller,
-                  obscureText: true,
+                  obscureText: !isAccountMode,
                   autocorrect: false,
                   enableSuggestions: false,
-                  placeholder: 'Enter admin password',
+                  placeholder: widget.controller.backendCredentialPlaceholder,
                   onChanged: (value) => setDialogState(() => draft = value),
                 ),
               ),
@@ -92,8 +95,8 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
     setState(() {
       _localStatusMessage = next.trim().isEmpty
-          ? 'Password cleared.'
-          : 'Password saved locally.';
+          ? '${widget.controller.backendCredentialLabel} cleared.'
+          : '${widget.controller.backendCredentialLabel} saved locally.';
     });
   }
 
@@ -271,6 +274,15 @@ class _SettingsPageState extends State<SettingsPage> {
       animation: widget.controller,
       builder: (context, _) {
         final busy = widget.controller.isBackendBusy;
+        final isAccountMode = widget.controller.usesAccountBackend;
+        final effectiveApiUrl = widget.controller.effectiveBackendApiUrl;
+        if (_apiController.text != effectiveApiUrl) {
+          _apiController.value = _apiController.value.copyWith(
+            text: effectiveApiUrl,
+            selection: TextSelection.collapsed(offset: effectiveApiUrl.length),
+            composing: TextRange.empty,
+          );
+        }
         final backendStatus =
             _localStatusMessage ?? widget.controller.lastBackendStatusMessage;
         final syncLabel = _formatSyncLabel(
@@ -464,7 +476,9 @@ class _SettingsPageState extends State<SettingsPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
                       Text(
-                        'Backend API',
+                        isAccountMode
+                            ? 'Account Backend API (Fixed)'
+                            : 'Backend API',
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
@@ -476,12 +490,14 @@ class _SettingsPageState extends State<SettingsPage> {
                       const SizedBox(height: 6),
                       CupertinoTextField(
                         controller: _apiController,
+                        readOnly: isAccountMode,
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
                           vertical: 12,
                         ),
                         keyboardType: TextInputType.url,
                         autocorrect: false,
+                        placeholder: effectiveApiUrl,
                         onEditingComplete: () {
                           FocusScope.of(context).unfocus();
                           unawaited(_persistBackendConfig());
@@ -525,7 +541,7 @@ class _SettingsPageState extends State<SettingsPage> {
                               const Icon(CupertinoIcons.lock_fill, size: 16),
                               const SizedBox(width: 8),
                               Text(
-                                'Password',
+                                widget.controller.backendCredentialLabel,
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
@@ -555,6 +571,19 @@ class _SettingsPageState extends State<SettingsPage> {
                         ),
                       ),
                       const SizedBox(height: 12),
+                      if (isAccountMode)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Text(
+                            'Logged-in mode uses the new API at ${AppController.accountBackendApiUrl}. Paste a Firebase ID token to authenticate backend sync. Legacy notes.blackpiratex.com is only used in guest mode.',
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              color: CupertinoColors.secondaryLabel.resolveFrom(
+                                context,
+                              ),
+                            ),
+                          ),
+                        ),
                       Row(
                         children: <Widget>[
                           Expanded(

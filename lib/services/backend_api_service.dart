@@ -19,7 +19,8 @@ class BackendSearchBookResult {
   final int? firstPublishYear;
   final int? coverId;
 
-  String get authorText => authors.isEmpty ? 'Unknown author' : authors.join(', ');
+  String get authorText =>
+      authors.isEmpty ? 'Unknown author' : authors.join(', ');
 
   String get coverUrl {
     if (coverId == null) return '';
@@ -41,6 +42,13 @@ class BackendConnectionTestResult {
   bool get ok => readApiReachable && passwordValid;
 }
 
+class BackendUploadedCover {
+  const BackendUploadedCover({required this.url, required this.pathname});
+
+  final String url;
+  final String pathname;
+}
+
 class BackendApiService {
   const BackendApiService();
 
@@ -59,7 +67,9 @@ class BackendApiService {
 
     final decoded = jsonDecode(response.body);
     if (decoded is! List) {
-      throw const BackendApiException('Unexpected response format from /api/books');
+      throw const BackendApiException(
+        'Unexpected response format from /api/books',
+      );
     }
 
     final now = DateTime.now().toUtc();
@@ -70,6 +80,42 @@ class BackendApiService {
       books.add(_mapServerBook(Map<String, dynamic>.from(item), now, i));
     }
     return books;
+  }
+
+  Future<List<BookItem>> fetchAllBooksV1({
+    required String baseUrl,
+    required String idToken,
+    bool includeDeleted = false,
+  }) async {
+    final response = await _sendJsonRequest(
+      method: 'GET',
+      uri: _buildUri(baseUrl, '/api/v1/books', <String, String>{
+        'includeDeleted': includeDeleted ? 'true' : 'false',
+      }),
+      bearerToken: idToken,
+      responseTimeout: const Duration(seconds: 20),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw BackendApiException(
+        _extractErrorMessage(response.body) ??
+            'Failed to fetch account books (${response.statusCode})',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! List) {
+      throw const BackendApiException(
+        'Unexpected response format from /api/v1/books',
+      );
+    }
+    return decoded
+        .whereType<Map>()
+        .map((row) => _mapV1Book(Map<String, dynamic>.from(row)))
+        .where(
+          (book) => book.title.trim().isNotEmpty || book.id.trim().isNotEmpty,
+        )
+        .toList(growable: false);
   }
 
   Future<List<BackendSearchBookResult>> searchBooks({
@@ -94,7 +140,9 @@ class BackendApiService {
 
     final decoded = jsonDecode(response.body);
     if (decoded is! List) {
-      throw const BackendApiException('Unexpected response format from /api/search');
+      throw const BackendApiException(
+        'Unexpected response format from /api/search',
+      );
     }
 
     return decoded
@@ -111,7 +159,9 @@ class BackendApiService {
     String shelf = 'watchlist',
   }) async {
     if (password.trim().isEmpty) {
-      throw const BackendApiException('Set the backend admin password in Settings first.');
+      throw const BackendApiException(
+        'Set the backend admin password in Settings first.',
+      );
     }
     if (olid.trim().isEmpty) {
       throw const BackendApiException('Missing OpenLibrary work ID.');
@@ -123,10 +173,7 @@ class BackendApiService {
       bodyJson: <String, dynamic>{
         'password': password,
         'action': 'add',
-        'data': <String, dynamic>{
-          'olid': olid.trim(),
-          'shelf': shelf,
-        },
+        'data': <String, dynamic>{'olid': olid.trim(), 'shelf': shelf},
       },
       responseTimeout: const Duration(seconds: 45),
     );
@@ -140,14 +187,22 @@ class BackendApiService {
 
     final decoded = jsonDecode(response.body);
     if (decoded is! Map) {
-      throw const BackendApiException('Unexpected response format when adding a book.');
+      throw const BackendApiException(
+        'Unexpected response format when adding a book.',
+      );
     }
     final book = decoded['book'];
     if (book is! Map) {
-      throw const BackendApiException('Add book response did not include a book payload.');
+      throw const BackendApiException(
+        'Add book response did not include a book payload.',
+      );
     }
 
-    return _mapServerBook(Map<String, dynamic>.from(book), DateTime.now().toUtc(), 0);
+    return _mapServerBook(
+      Map<String, dynamic>.from(book),
+      DateTime.now().toUtc(),
+      0,
+    );
   }
 
   Future<void> updateBook({
@@ -156,7 +211,9 @@ class BackendApiService {
     required BookItem book,
   }) async {
     if (password.trim().isEmpty) {
-      throw const BackendApiException('Set the backend admin password in Settings first.');
+      throw const BackendApiException(
+        'Set the backend admin password in Settings first.',
+      );
     }
 
     final response = await _sendJsonRequest(
@@ -169,7 +226,9 @@ class BackendApiService {
           'id': book.id,
           'title': book.title,
           'authors': jsonEncode(
-            book.author.trim().isEmpty ? const <String>[] : <String>[book.author.trim()],
+            book.author.trim().isEmpty
+                ? const <String>[]
+                : <String>[book.author.trim()],
           ),
           'imageLinks': jsonEncode(
             book.coverUrl.trim().isEmpty
@@ -203,7 +262,9 @@ class BackendApiService {
     required List<String> highlights,
   }) async {
     if (password.trim().isEmpty) {
-      throw const BackendApiException('Set the backend admin password in Settings first.');
+      throw const BackendApiException(
+        'Set the backend admin password in Settings first.',
+      );
     }
 
     final cleanedHighlights = highlights
@@ -266,7 +327,8 @@ class BackendApiService {
       return const BackendConnectionTestResult(
         readApiReachable: true,
         passwordValid: false,
-        message: 'Read API works. Password not set, so admin auth was not tested.',
+        message:
+            'Read API works. Password not set, so admin auth was not tested.',
       );
     }
 
@@ -305,28 +367,235 @@ class BackendApiService {
     );
   }
 
+  Future<BackendConnectionTestResult> testConnectionV1({
+    required String baseUrl,
+    required String idToken,
+  }) async {
+    final trimmedUrl = baseUrl.trim();
+    if (trimmedUrl.isEmpty) {
+      throw const BackendApiException('Backend API URL is empty.');
+    }
+    if (idToken.trim().isEmpty) {
+      throw const BackendApiException(
+        'Set a Firebase ID token in Settings first.',
+      );
+    }
+
+    final response = await _sendJsonRequest(
+      method: 'GET',
+      uri: _buildUri(trimmedUrl, '/api/v1/me'),
+      bearerToken: idToken,
+      responseTimeout: const Duration(seconds: 20),
+    );
+
+    if (response.statusCode == 401) {
+      return const BackendConnectionTestResult(
+        readApiReachable: true,
+        passwordValid: false,
+        message: 'V1 API reachable, but Firebase ID token was rejected.',
+      );
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw BackendApiException(
+        _extractErrorMessage(response.body) ??
+            'V1 auth check failed (${response.statusCode})',
+      );
+    }
+
+    return const BackendConnectionTestResult(
+      readApiReachable: true,
+      passwordValid: true,
+      message: 'V1 API and Firebase token look valid.',
+    );
+  }
+
+  Future<BookItem> upsertBookV1({
+    required String baseUrl,
+    required String idToken,
+    required BookItem book,
+    int? baseVersion,
+  }) async {
+    if (idToken.trim().isEmpty) {
+      throw const BackendApiException('Missing Firebase ID token.');
+    }
+
+    final payload = <String, dynamic>{
+      'id': book.id,
+      'title': book.title,
+      'author': book.author,
+      'notes': book.notes,
+      'coverUrl': book.coverUrl,
+      'status': book.status.storageValue,
+      'rating': book.rating,
+      'pageCount': book.pageCount,
+      'progressPercent': book.progressPercent,
+      'medium': _serverReadingMedium(book.medium),
+      'startDateIso': book.startDateIso,
+      'endDateIso': book.endDateIso,
+      'createdAtIso': book.createdAtIso,
+      'clientUpdatedAtIso': DateTime.now().toIso8601String(),
+      'highlights': book.highlights,
+      if (baseVersion != null) 'baseVersion': baseVersion,
+    };
+
+    final response = await _sendJsonRequest(
+      method: 'PUT',
+      uri: _buildUri(baseUrl, '/api/v1/books/${Uri.encodeComponent(book.id)}'),
+      bearerToken: idToken,
+      bodyJson: payload,
+      responseTimeout: const Duration(seconds: 25),
+    );
+
+    if (response.statusCode == 409) {
+      throw BackendApiException(
+        _extractErrorMessage(response.body) ??
+            'Version conflict while saving book.',
+      );
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw BackendApiException(
+        _extractErrorMessage(response.body) ??
+            'V1 book save failed (${response.statusCode})',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map) {
+      throw const BackendApiException(
+        'Unexpected response format for v1 book save.',
+      );
+    }
+    return _mapV1Book(Map<String, dynamic>.from(decoded));
+  }
+
+  Future<void> deleteBookV1({
+    required String baseUrl,
+    required String idToken,
+    required String bookId,
+  }) async {
+    final response = await _sendJsonRequest(
+      method: 'DELETE',
+      uri: _buildUri(baseUrl, '/api/v1/books/${Uri.encodeComponent(bookId)}'),
+      bearerToken: idToken,
+      responseTimeout: const Duration(seconds: 20),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw BackendApiException(
+        _extractErrorMessage(response.body) ??
+            'V1 delete failed (${response.statusCode})',
+      );
+    }
+  }
+
+  Future<BackendUploadedCover> uploadCoverImageV1({
+    required String baseUrl,
+    required String idToken,
+    required File file,
+  }) async {
+    if (!await file.exists()) {
+      throw const BackendApiException(
+        'Selected cover image file was not found.',
+      );
+    }
+    final fileBytes = await file.readAsBytes();
+    if (fileBytes.isEmpty) {
+      throw const BackendApiException('Selected cover image file is empty.');
+    }
+
+    final uri = _buildUri(baseUrl, '/api/v1/uploads/cover');
+    final boundary = '----booktracker${DateTime.now().microsecondsSinceEpoch}';
+    final fileName = file.uri.pathSegments.isEmpty
+        ? 'cover.jpg'
+        : file.uri.pathSegments.last;
+    final contentType = _guessImageMimeType(fileName);
+
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 15);
+    try {
+      final request = await client.openUrl('POST', uri);
+      request.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer ${idToken.trim()}',
+      );
+      request.headers.set(
+        HttpHeaders.contentTypeHeader,
+        'multipart/form-data; boundary=$boundary',
+      );
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+
+      request.write('--$boundary\r\n');
+      request.write(
+        'Content-Disposition: form-data; name="file"; filename="$fileName"\r\n',
+      );
+      request.write('Content-Type: $contentType\r\n\r\n');
+      request.add(fileBytes);
+      request.write('\r\n--$boundary--\r\n');
+
+      final response = await request.close().timeout(
+        const Duration(seconds: 30),
+      );
+      final body = await utf8
+          .decodeStream(response)
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw BackendApiException(
+          _extractErrorMessage(body) ??
+              'Cover upload failed (${response.statusCode})',
+        );
+      }
+
+      final decoded = jsonDecode(body);
+      if (decoded is! Map) {
+        throw const BackendApiException('Unexpected upload response format.');
+      }
+      final url = (decoded['url'] as String? ?? '').trim();
+      final pathname = (decoded['pathname'] as String? ?? '').trim();
+      if (url.isEmpty) {
+        throw const BackendApiException(
+          'Upload response did not include a cover URL.',
+        );
+      }
+      return BackendUploadedCover(url: url, pathname: pathname);
+    } on TimeoutException {
+      throw const BackendApiException('Cover upload timed out.');
+    } on SocketException catch (e) {
+      throw BackendApiException('Network error: ${e.message}');
+    } on HandshakeException catch (e) {
+      throw BackendApiException('TLS/SSL error: ${e.message}');
+    } on FormatException {
+      throw const BackendApiException('Upload response was not valid JSON.');
+    } finally {
+      client.close(force: true);
+    }
+  }
+
   Future<_HttpJsonResponse> _sendJsonRequest({
     required String method,
     required Uri uri,
+    String? bearerToken,
     Map<String, dynamic>? bodyJson,
     Duration requestTimeout = const Duration(seconds: 10),
     Duration responseTimeout = const Duration(seconds: 12),
   }) async {
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 10);
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 10);
     try {
-      final request = await client
-          .openUrl(method, uri)
-          .timeout(requestTimeout);
+      final request = await client.openUrl(method, uri).timeout(requestTimeout);
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      if (bearerToken != null && bearerToken.trim().isNotEmpty) {
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer ${bearerToken.trim()}',
+        );
+      }
       if (bodyJson != null) {
         request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
         request.write(jsonEncode(bodyJson));
       }
 
       final response = await request.close().timeout(responseTimeout);
-      final body = await utf8.decodeStream(response).timeout(
-            responseTimeout,
-          );
+      final body = await utf8.decodeStream(response).timeout(responseTimeout);
       return _HttpJsonResponse(statusCode: response.statusCode, body: body);
     } on TimeoutException {
       throw const BackendApiException('Connection timed out.');
@@ -371,13 +640,14 @@ class BackendApiService {
         ? parsedBase.path.substring(0, parsedBase.path.length - 1)
         : parsedBase.path;
     final fullPath = '$normalized${path.startsWith('/') ? path : '/$path'}';
-    return parsedBase.replace(
-      path: fullPath,
-      queryParameters: queryParameters,
-    );
+    return parsedBase.replace(path: fullPath, queryParameters: queryParameters);
   }
 
-  BookItem _mapServerBook(Map<String, dynamic> row, DateTime nowUtc, int index) {
+  BookItem _mapServerBook(
+    Map<String, dynamic> row,
+    DateTime nowUtc,
+    int index,
+  ) {
     final title = (row['title'] as String? ?? '').trim();
     final author = _firstAuthor(row['authors']);
     final coverUrl = _thumbnailUrl(row['imageLinks']);
@@ -406,6 +676,44 @@ class BackendApiService {
       startDateIso: startedOn,
       endDateIso: finishedOn,
       createdAtIso: createdAt,
+      highlights: highlights,
+    );
+  }
+
+  BookItem _mapV1Book(Map<String, dynamic> row) {
+    final rawHighlights = row['highlights'];
+    final highlights = <String>[];
+    if (rawHighlights is List) {
+      for (final item in rawHighlights) {
+        if (item is String && item.trim().isNotEmpty) {
+          highlights.add(item.trim());
+          continue;
+        }
+        if (item is Map) {
+          final text = (item['text'] as String? ?? '').trim();
+          if (text.isNotEmpty) highlights.add(text);
+        }
+      }
+    }
+
+    return BookItem(
+      id: (row['id'] as String? ?? '').trim().isEmpty
+          ? DateTime.now().microsecondsSinceEpoch.toString()
+          : (row['id'] as String).trim(),
+      title: (row['title'] as String? ?? '').trim(),
+      author: (row['author'] as String? ?? '').trim(),
+      notes: (row['notes'] as String? ?? '').trim(),
+      coverUrl: (row['coverUrl'] as String? ?? '').trim(),
+      status: BookStatusX.fromStorage(row['status']),
+      rating: _asInt(row['rating'])?.clamp(0, 5).toInt() ?? 0,
+      pageCount: _asInt(row['pageCount'])?.clamp(0, 100000).toInt() ?? 0,
+      progressPercent:
+          _asInt(row['progressPercent'])?.clamp(0, 100).toInt() ?? 0,
+      medium: ReadingMediumX.fromStorage(row['medium']),
+      startDateIso: _dateString(row['startDateIso']),
+      endDateIso: _dateString(row['endDateIso']),
+      createdAtIso:
+          _dateString(row['createdAtIso']) ?? DateTime.now().toIso8601String(),
       highlights: highlights,
     );
   }
@@ -529,6 +837,14 @@ class BackendApiService {
   }
 }
 
+String _guessImageMimeType(String fileName) {
+  final lower = fileName.toLowerCase();
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  return 'image/jpeg';
+}
+
 class BackendApiException implements Exception {
   const BackendApiException(this.message);
 
@@ -539,10 +855,7 @@ class BackendApiException implements Exception {
 }
 
 class _HttpJsonResponse {
-  const _HttpJsonResponse({
-    required this.statusCode,
-    required this.body,
-  });
+  const _HttpJsonResponse({required this.statusCode, required this.body});
 
   final int statusCode;
   final String body;
