@@ -1,7 +1,7 @@
 name: book_app_themed
 description: Cupertino-themed book tracker app for Android (Flutter UI without Material widgets).
 publish_to: "none"
-version: 0.1.1+2
+version: 0.1.2+3
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -19,6 +19,8 @@ dependencies:
   file_picker: ^8.1.6
   archive: ^3.6.1
   share_plus: ^10.1.4
+  firebase_core: ^3.15.1
+  firebase_auth: ^5.6.2
 
 dev_dependencies:
   flutter_test:

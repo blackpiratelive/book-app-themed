@@ -28,6 +28,17 @@ jobs:
       - name: Generate Android platform scaffolding
         run: flutter create --platforms=android --project-name book_app_themed --org com.blackpiratex .
 
+      - name: Install Firebase Android config
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f google-services.json ]; then
+            echo "::error::Missing google-services.json in repository root"
+            exit 1
+          fi
+          cp google-services.json android/app/google-services.json
+          ls -lh android/app/google-services.json
+
       - name: Validate Android signing secrets
         shell: bash
         env:

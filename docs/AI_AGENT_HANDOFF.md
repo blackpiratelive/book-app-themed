@@ -12,6 +12,7 @@ It summarizes what is currently implemented, how the app is structured, and the 
 - Android package / applicationId target: `com.blackpiratex.book` (patched in CI after Android scaffold generation)
 - Local environment note: this repo may be edited on a weak machine without Flutter installed; CI is used for build/analyze
 - Android platform files are **not** stored in repo; CI generates them with `flutter create --platforms=android .`
+- Firebase Android config: root `google-services.json` is copied into generated `android/app/` during CI before build
 
 ## Current Architecture (Modular)
 
@@ -27,15 +28,16 @@ Domain model:
   - `ReadingMedium` (`Kindle`, `Paperback`, `Mobile`, `Laptop`)
 
 State and persistence:
-- `lib/state/app_controller.dart`: app state, filtering, CRUD, dark mode, frontend auth session UI state, backend-mode switching (guest legacy API vs account v1 API), persistence orchestration
+- `lib/state/app_controller.dart`: app state, filtering, CRUD, dark mode, auth session state, backend-mode switching (guest legacy API vs account v1 API), persistence orchestration
 - `lib/services/app_storage_service.dart`: `shared_preferences` load/save (books, settings, backend config/token, onboarding, frontend auth session)
 - `lib/services/backend_api_service.dart`: backend HTTP client for both legacy (`/api/public`, `/api/books`) and account v1 (`/api/v1/*`) APIs, including v1 cover upload
+- `lib/services/firebase_auth_service.dart`: Firebase Auth email/password signup/login, email verification send, and ID token retrieval
 - `lib/services/book_discovery_service.dart`: direct OpenLibrary + Google Books search (local add flow)
 - `lib/services/local_media_service.dart`: device image picker + local cover file storage
 - `lib/services/local_backup_service.dart`: zip import/export of local app data + local cover image files
 
 Pages:
-- `lib/pages/auth_gate_page.dart` (first-open login/signup/guest UI; frontend-only placeholder auth)
+- `lib/pages/auth_gate_page.dart` (first-open login/signup/guest UI; Firebase email/password auth + guest mode)
 - `lib/pages/first_run_intro_page.dart` (first-open onboarding / intro tutorial)
 - `lib/pages/home_page.dart`
 - `lib/pages/book_details_page.dart`
@@ -242,7 +244,7 @@ Features:
 - Account section clarifies auth/local mode behavior
   - Guest mode is the local mode
 - Dark mode toggle (real setting, persisted)
-- Account section (frontend-only auth status)
+- Account section (auth status)
   - Shows `Logged in`, `Guest`, or `Signed out`
   - Displays saved frontend auth name/email when present
   - Shows `Log Out` button when logged in with an account
@@ -264,31 +266,33 @@ Features:
 
 Implemented via `AppController` and `shared_preferences`.
 
-### 12. Frontend Auth Gate (UI Only)
+### 12. Auth Gate (Firebase + Guest)
 
 Implemented in:
 - `lib/pages/auth_gate_page.dart`
 - `lib/app.dart`
 - `lib/state/app_controller.dart`
 - `lib/services/app_storage_service.dart`
+- `lib/services/firebase_auth_service.dart`
 
 Behavior:
 - On first install/open, the app now shows a Cupertino auth screen before onboarding/home
 - Users can choose:
-  - `Sign Up` (UI-only local session)
-  - `Log In` (UI-only local session)
+  - `Sign Up` (Firebase email/password)
+  - `Log In` (Firebase email/password)
   - `Continue as Guest` (local mode)
-- No backend auth calls are made yet (placeholder frontend flow only)
+- Signup/login use Firebase Auth and then call backend `GET /api/v1/me` to bootstrap account session
+- Signup sends a Firebase email verification email for unverified users
 - Selected auth session is persisted locally so the auth gate is skipped on later launches until logout
 - Existing onboarding still appears after auth if it has not been completed yet
-- Important: auth screen is still frontend-only; for backend v1 sync the app currently expects a Firebase ID token to be pasted in Settings (Firebase SDK sign-in is not yet integrated)
+- Logged-in mode stores the Firebase ID token in the existing backend credential field for compatibility, and refreshes token from Firebase before v1 API calls when possible
 
 ### 14. Dual Backend Routing (Guest Legacy API vs Logged-in v1 API)
 
 Behavior:
 - Guest mode continues using the legacy backend (`notes.blackpiratex.com`) and legacy endpoints
 - Logged-in mode uses the new v1 backend at `https://book-tracker-backend-inky.vercel.app`
-- Logged-in mode backend sync requires a Firebase ID token (manually pasted in Settings for now)
+- Logged-in mode backend sync uses Firebase Auth ID tokens from the app (manual token paste remains a fallback)
 - Logged-in mode supports:
   - full book fetch via `/api/v1/books`
   - book upsert via `PUT /api/v1/books/:id`
@@ -308,6 +312,13 @@ Behavior:
 - Export writes the zip to app documents storage (`exports/`) and then attempts to open the mobile OS share sheet (instead of relying on a save-file picker)
 - Import restores local app data and extracts local cover files, rewriting book cover file paths to the current device app storage directory
 - Intended primarily for guest/local mode portability and device migration
+
+### 15. Android CI Build (Generated Platform + Firebase)
+
+Behavior:
+- GitHub Actions generates `android/` with `flutter create`
+- CI copies repository-root `google-services.json` into `android/app/google-services.json`
+- `scripts/configure_generated_android.py` patches generated Gradle files to apply the Google Services plugin for Firebase
 
 ## Agent Workflow Expectation
 

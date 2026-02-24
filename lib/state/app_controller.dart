@@ -6,6 +6,7 @@ import 'package:book_app_themed/models/book.dart';
 import 'package:book_app_themed/services/book_discovery_service.dart';
 import 'package:book_app_themed/services/backend_api_service.dart';
 import 'package:book_app_themed/services/app_storage_service.dart';
+import 'package:book_app_themed/services/firebase_auth_service.dart';
 import 'package:book_app_themed/services/local_backup_service.dart';
 import 'package:book_app_themed/services/local_media_service.dart';
 import 'package:flutter/cupertino.dart';
@@ -48,17 +49,20 @@ class AppController extends ChangeNotifier {
   AppController({
     required AppStorageService storage,
     BackendApiService backendApi = const BackendApiService(),
+    FirebaseAuthService firebaseAuth = const FirebaseAuthService(),
     BookDiscoveryService bookDiscovery = const BookDiscoveryService(),
     LocalMediaService localMedia = const LocalMediaService(),
     LocalBackupService localBackup = const LocalBackupService(),
   }) : _storage = storage,
        _backendApi = backendApi,
+       _firebaseAuth = firebaseAuth,
        _bookDiscovery = bookDiscovery,
        _localMedia = localMedia,
        _localBackup = localBackup;
 
   final AppStorageService _storage;
   final BackendApiService _backendApi;
+  final FirebaseAuthService _firebaseAuth;
   final BookDiscoveryService _bookDiscovery;
   final LocalMediaService _localMedia;
   final LocalBackupService _localBackup;
@@ -195,23 +199,59 @@ class AppController extends ChangeNotifier {
     required String displayName,
     required String email,
   }) async {
-    _authSessionType = AppAuthSessionType.account;
-    _authDisplayName = displayName.trim();
-    _authEmail = email.trim();
-    _backendCachePrimed = false;
-    _lastBackendSyncAtIso = null;
-    notifyListeners();
-    await _persistAuthState();
+    await _completeAccountAuth(
+      displayName: displayName,
+      email: email,
+      idToken: _backendPassword,
+      bootstrapBackend: false,
+    );
+  }
+
+  Future<void> loginWithEmailPassword({
+    required String email,
+    required String password,
+  }) async {
+    final session = await _firebaseAuth.signInWithEmailPassword(
+      email: email,
+      password: password,
+    );
+    await _completeAccountAuthFromFirebase(session);
+  }
+
+  Future<void> signUpWithEmailPassword({
+    required String displayName,
+    required String email,
+    required String password,
+  }) async {
+    final session = await _firebaseAuth.signUpWithEmailPassword(
+      displayName: displayName,
+      email: email,
+      password: password,
+    );
+    await _completeAccountAuthFromFirebase(session);
   }
 
   Future<void> logout() async {
+    if (isLoggedIn) {
+      try {
+        await _firebaseAuth.signOut();
+      } catch (_) {
+        // Clearing local session state still logs the user out of the app.
+      }
+    }
     _authSessionType = AppAuthSessionType.none;
     _authDisplayName = '';
     _authEmail = '';
+    _backendPassword = '';
     _backendCachePrimed = false;
     _lastBackendSyncAtIso = null;
     notifyListeners();
     await _persistAuthState();
+    await _storage.saveBackendConfig(
+      apiUrl: _backendApiUrl,
+      password: '',
+      invalidateCache: false,
+    );
   }
 
   Future<void> addBook(BookDraft draft) async {
@@ -283,7 +323,7 @@ class AppController extends ChangeNotifier {
       try {
         final saved = await _backendApi.upsertBookV1(
           baseUrl: effectiveBackendApiUrl,
-          idToken: _backendPassword,
+          idToken: await _resolveAccountIdToken(forceRefresh: true),
           book: prepared,
         );
         _books[index] = saved;
@@ -341,7 +381,7 @@ class AppController extends ChangeNotifier {
       try {
         await _backendApi.deleteBookV1(
           baseUrl: effectiveBackendApiUrl,
-          idToken: _backendPassword,
+          idToken: await _resolveAccountIdToken(forceRefresh: true),
           bookId: deletedBook.id,
         );
         _hasLocalBookChanges = false;
@@ -384,7 +424,7 @@ class AppController extends ChangeNotifier {
       try {
         final synced = await _backendApi.upsertBookV1(
           baseUrl: effectiveBackendApiUrl,
-          idToken: _backendPassword,
+          idToken: await _resolveAccountIdToken(forceRefresh: true),
           book: updated,
         );
         _books[index] = synced;
@@ -507,7 +547,12 @@ class AppController extends ChangeNotifier {
     final url = usesAccountBackend
         ? accountBackendApiUrl
         : (apiUrl ?? _backendApiUrl).trim();
-    final pw = password ?? _backendPassword;
+    final pw = usesAccountBackend
+        ? await _resolveAccountIdToken(
+            fallbackToken: password ?? _backendPassword,
+            forceRefresh: true,
+          )
+        : (password ?? _backendPassword);
     _setBackendBusy(true, message: 'Testing backend connection...');
     try {
       final result = usesAccountBackend
@@ -596,7 +641,7 @@ class AppController extends ChangeNotifier {
     final fetched = usesAccountBackend
         ? await _backendApi.fetchAllBooksV1(
             baseUrl: url,
-            idToken: _backendPassword,
+            idToken: await _resolveAccountIdToken(forceRefresh: true),
             includeDeleted: false,
           )
         : await _backendApi.fetchAllBooks(url);
@@ -646,7 +691,7 @@ class AppController extends ChangeNotifier {
       final fetched = usesAccountBackend
           ? await _backendApi.fetchAllBooksV1(
               baseUrl: url,
-              idToken: _backendPassword,
+              idToken: await _resolveAccountIdToken(forceRefresh: true),
               includeDeleted: false,
             )
           : await _backendApi.fetchAllBooks(url);
@@ -753,6 +798,115 @@ class AppController extends ChangeNotifier {
         jsonEncode(b.map((book) => book.toJson()).toList());
   }
 
+  Future<void> _completeAccountAuthFromFirebase(
+    FirebaseAuthSession session,
+  ) async {
+    var resolvedDisplayName = session.displayName;
+    var resolvedEmail = session.email;
+    try {
+      final bootstrap = await _backendApi.fetchSessionBootstrapV1(
+        baseUrl: accountBackendApiUrl,
+        idToken: session.idToken,
+      );
+      if (bootstrap.displayName.trim().isNotEmpty) {
+        resolvedDisplayName = bootstrap.displayName.trim();
+      }
+      if (bootstrap.email.trim().isNotEmpty) {
+        resolvedEmail = bootstrap.email.trim();
+      }
+    } on BackendApiException {
+      rethrow;
+    }
+
+    await _completeAccountAuth(
+      displayName: resolvedDisplayName,
+      email: resolvedEmail,
+      idToken: session.idToken,
+      bootstrapBackend: true,
+    );
+    if (!session.emailVerified) {
+      _lastBackendStatusMessage =
+          'Verification email sent to ${resolvedEmail.isEmpty ? 'your email' : resolvedEmail}. Check your inbox before continuing on new devices.';
+      notifyListeners();
+    }
+  }
+
+  Future<void> _completeAccountAuth({
+    required String displayName,
+    required String email,
+    required String idToken,
+    required bool bootstrapBackend,
+  }) async {
+    _authSessionType = AppAuthSessionType.account;
+    _authDisplayName = displayName.trim().isEmpty
+        ? 'Reader'
+        : displayName.trim();
+    _authEmail = email.trim();
+    _backendApiUrl = accountBackendApiUrl;
+    _backendPassword = idToken.trim();
+    _backendCachePrimed = false;
+    _lastBackendSyncAtIso = null;
+    _lastBackendStatusMessage = bootstrapBackend
+        ? 'Signed in. Account backend connected.'
+        : _lastBackendStatusMessage;
+    notifyListeners();
+    await _persistAuthState();
+    await _storage.saveBackendConfig(
+      apiUrl: _backendApiUrl,
+      password: _backendPassword,
+      invalidateCache: false,
+    );
+    await _storage.saveBackendSyncState(
+      backendCachePrimed: _backendCachePrimed,
+      hasLocalBookChanges: _hasLocalBookChanges,
+      lastBackendSyncAtIso: null,
+      clearLastBackendSyncAt: true,
+    );
+  }
+
+  Future<String> _resolveAccountIdToken({
+    String? fallbackToken,
+    bool forceRefresh = false,
+  }) async {
+    if (!usesAccountBackend) return fallbackToken ?? _backendPassword;
+
+    try {
+      final session = await _firebaseAuth.currentSession(
+        forceRefresh: forceRefresh,
+      );
+      if (session != null && session.idToken.trim().isNotEmpty) {
+        final changed = session.idToken.trim() != _backendPassword;
+        _backendPassword = session.idToken.trim();
+        if (session.displayName.trim().isNotEmpty) {
+          _authDisplayName = session.displayName.trim();
+        }
+        if (session.email.trim().isNotEmpty) {
+          _authEmail = session.email.trim();
+        }
+        if (changed) {
+          notifyListeners();
+          await _persistAuthState();
+          await _storage.saveBackendConfig(
+            apiUrl: _backendApiUrl,
+            password: _backendPassword,
+            invalidateCache: false,
+          );
+        }
+        return _backendPassword;
+      }
+    } on AppFirebaseAuthException {
+      // Allow fallback to a manually pasted token if Firebase is unavailable.
+    }
+
+    final token = (fallbackToken ?? _backendPassword).trim();
+    if (token.isEmpty) {
+      throw const BackendApiException(
+        'Sign in to Firebase first (or set a Firebase ID token in Settings).',
+      );
+    }
+    return token;
+  }
+
   Future<void> _persistAuthState() {
     return _storage.saveAuthState(
       mode: _authSessionType.storageValue,
@@ -813,16 +967,10 @@ class AppController extends ChangeNotifier {
 
   Future<void> _syncBookToActiveBackend(BookItem book) async {
     if (usesAccountBackend) {
-      if (_backendPassword.trim().isEmpty) {
-        await _markLocalBookChanges();
-        throw const BackendApiException(
-          'Logged-in mode uses the new Firebase backend. Paste a Firebase ID token in Settings to sync.',
-        );
-      }
       try {
         final saved = await _backendApi.upsertBookV1(
           baseUrl: effectiveBackendApiUrl,
-          idToken: _backendPassword,
+          idToken: await _resolveAccountIdToken(forceRefresh: true),
           book: book,
         );
         final index = _books.indexWhere((b) => b.id == book.id);
@@ -854,14 +1002,13 @@ class AppController extends ChangeNotifier {
     if (!usesAccountBackend) return book;
     final coverPath = book.coverUrl.trim();
     if (!_isLocalCoverPath(coverPath)) return book;
-    if (_backendPassword.trim().isEmpty) return book;
 
     try {
       final file = _localFileFromPath(coverPath);
       if (file == null) return book;
       final uploaded = await _backendApi.uploadCoverImageV1(
         baseUrl: effectiveBackendApiUrl,
-        idToken: _backendPassword,
+        idToken: await _resolveAccountIdToken(forceRefresh: true),
         file: file,
       );
       return book.copyWith(coverUrl: uploaded.url);

@@ -54,10 +54,27 @@ class _AuthGatePageState extends State<AuthGatePage> {
       _errorText = null;
     });
 
-    await widget.controller.completeFrontendAuth(
-      displayName: _isSignup ? name : _fallbackNameFromEmail(email),
-      email: email,
-    );
+    try {
+      if (_isSignup) {
+        await widget.controller.signUpWithEmailPassword(
+          displayName: name,
+          email: email,
+          password: password,
+        );
+      } else {
+        await widget.controller.loginWithEmailPassword(
+          email: email,
+          password: password,
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _errorText = e.toString();
+      });
+      return;
+    }
 
     if (!mounted) return;
     setState(() => _submitting = false);
@@ -231,7 +248,7 @@ class _AuthGatePageState extends State<AuthGatePage> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Frontend UI only for now. Backend auth will be wired later.',
+                                'Uses Firebase email/password auth, then boots your account session with the v1 backend.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 12,
@@ -332,10 +349,4 @@ class _CupertinoFormField extends StatelessWidget {
       ),
     );
   }
-}
-
-String _fallbackNameFromEmail(String email) {
-  final localPart = email.split('@').first.trim();
-  if (localPart.isEmpty) return 'Reader';
-  return localPart;
 }

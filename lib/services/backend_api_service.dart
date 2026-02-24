@@ -49,6 +49,20 @@ class BackendUploadedCover {
   final String pathname;
 }
 
+class BackendV1SessionBootstrap {
+  const BackendV1SessionBootstrap({
+    required this.userId,
+    required this.email,
+    required this.displayName,
+    required this.serverTimeIso,
+  });
+
+  final String userId;
+  final String email;
+  final String displayName;
+  final String? serverTimeIso;
+}
+
 class BackendApiService {
   const BackendApiService();
 
@@ -116,6 +130,53 @@ class BackendApiService {
           (book) => book.title.trim().isNotEmpty || book.id.trim().isNotEmpty,
         )
         .toList(growable: false);
+  }
+
+  Future<BackendV1SessionBootstrap> fetchSessionBootstrapV1({
+    required String baseUrl,
+    required String idToken,
+  }) async {
+    if (idToken.trim().isEmpty) {
+      throw const BackendApiException('Missing Firebase ID token.');
+    }
+
+    final response = await _sendJsonRequest(
+      method: 'GET',
+      uri: _buildUri(baseUrl, '/api/v1/me'),
+      bearerToken: idToken,
+      responseTimeout: const Duration(seconds: 20),
+    );
+
+    if (response.statusCode == 401) {
+      throw const BackendApiException('Unauthorized (401)');
+    }
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw BackendApiException(
+        _extractErrorMessage(response.body) ??
+            'Failed to bootstrap account session (${response.statusCode})',
+      );
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! Map) {
+      throw const BackendApiException(
+        'Unexpected response format from /api/v1/me',
+      );
+    }
+    final data = Map<String, dynamic>.from(decoded);
+    final rawUser = data['user'];
+    if (rawUser is! Map) {
+      throw const BackendApiException(
+        'Session bootstrap response did not include a user object.',
+      );
+    }
+    final user = Map<String, dynamic>.from(rawUser);
+    return BackendV1SessionBootstrap(
+      userId: (user['id'] as String? ?? '').trim(),
+      email: (user['email'] as String? ?? '').trim(),
+      displayName: (user['displayName'] as String? ?? '').trim(),
+      serverTimeIso: (data['serverTime'] as String?)?.trim(),
+    );
   }
 
   Future<List<BackendSearchBookResult>> searchBooks({
@@ -381,25 +442,18 @@ class BackendApiService {
       );
     }
 
-    final response = await _sendJsonRequest(
-      method: 'GET',
-      uri: _buildUri(trimmedUrl, '/api/v1/me'),
-      bearerToken: idToken,
-      responseTimeout: const Duration(seconds: 20),
-    );
-
-    if (response.statusCode == 401) {
-      return const BackendConnectionTestResult(
-        readApiReachable: true,
-        passwordValid: false,
-        message: 'V1 API reachable, but Firebase ID token was rejected.',
-      );
-    }
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw BackendApiException(
-        _extractErrorMessage(response.body) ??
-            'V1 auth check failed (${response.statusCode})',
-      );
+    try {
+      await fetchSessionBootstrapV1(baseUrl: trimmedUrl, idToken: idToken);
+    } on BackendApiException catch (e) {
+      if (e.message.contains('401') ||
+          e.message.toLowerCase().contains('unauthorized')) {
+        return const BackendConnectionTestResult(
+          readApiReachable: true,
+          passwordValid: false,
+          message: 'V1 API reachable, but Firebase ID token was rejected.',
+        );
+      }
+      rethrow;
     }
 
     return const BackendConnectionTestResult(
