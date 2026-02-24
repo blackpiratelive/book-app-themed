@@ -23,7 +23,7 @@ class BookDetailsPage extends StatelessWidget {
   Future<void> _editBook(BuildContext context, BookItem book) async {
     final draft = await Navigator.of(context).push<BookDraft>(
       CupertinoPageRoute<BookDraft>(
-        builder: (_) => BookEditorPage(existing: book),
+        builder: (_) => BookEditorPage(controller: controller, existing: book),
       ),
     );
     if (draft == null) return;
@@ -50,7 +50,8 @@ class BookDetailsPage extends StatelessWidget {
   }
 
   Future<void> _deleteBook(BuildContext context, BookItem book) async {
-    final shouldDelete = await showCupertinoDialog<bool>(
+    final shouldDelete =
+        await showCupertinoDialog<bool>(
           context: context,
           builder: (context) {
             return CupertinoAlertDialog(
@@ -88,7 +89,8 @@ class BookDetailsPage extends StatelessWidget {
   Future<String?> _promptForHighlight(
     BuildContext context, {
     String title = 'Add Highlight',
-    String helperText = 'Saved to this book and synced using the API update endpoint.',
+    String helperText =
+        'Saved to this book and synced using the API update endpoint.',
   }) async {
     final inputController = TextEditingController();
     try {
@@ -98,7 +100,8 @@ class BookDetailsPage extends StatelessWidget {
           return StatefulBuilder(
             builder: (context, setSheetState) {
               final canAdd = inputController.text.trim().isNotEmpty;
-              final background = CupertinoColors.systemGroupedBackground.resolveFrom(context);
+              final background = CupertinoColors.systemGroupedBackground
+                  .resolveFrom(context);
               final border = CupertinoColors.separator.resolveFrom(context);
               final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
 
@@ -113,8 +116,12 @@ class BookDetailsPage extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
                     decoration: BoxDecoration(
                       color: background,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-                      border: Border(top: BorderSide(color: border.withValues(alpha: 0.45))),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(18),
+                      ),
+                      border: Border(
+                        top: BorderSide(color: border.withValues(alpha: 0.45)),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,7 +129,10 @@ class BookDetailsPage extends StatelessWidget {
                         Row(
                           children: <Widget>[
                             CupertinoButton(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               minimumSize: const Size(0, 0),
                               onPressed: () => Navigator.of(sheetContext).pop(),
                               child: const Text('Cancel'),
@@ -133,16 +143,22 @@ class BookDetailsPage extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
-                                color: CupertinoColors.label.resolveFrom(context),
+                                color: CupertinoColors.label.resolveFrom(
+                                  context,
+                                ),
                               ),
                             ),
                             const Spacer(),
                             CupertinoButton(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               minimumSize: const Size(0, 0),
                               onPressed: canAdd
-                                  ? () =>
-                                      Navigator.of(sheetContext).pop(inputController.text.trim())
+                                  ? () => Navigator.of(
+                                      sheetContext,
+                                    ).pop(inputController.text.trim())
                                   : null,
                               child: const Text('Add'),
                             ),
@@ -153,7 +169,9 @@ class BookDetailsPage extends StatelessWidget {
                           helperText,
                           style: TextStyle(
                             fontSize: 12.5,
-                            color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                            color: CupertinoColors.secondaryLabel.resolveFrom(
+                              context,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 10),
@@ -169,9 +187,9 @@ class BookDetailsPage extends StatelessWidget {
                             onChanged: (_) => setSheetState(() {}),
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              color: CupertinoColors.secondarySystemGroupedBackground.resolveFrom(
-                                context,
-                              ),
+                              color: CupertinoColors
+                                  .secondarySystemGroupedBackground
+                                  .resolveFrom(context),
                               borderRadius: BorderRadius.circular(14),
                               border: Border.all(
                                 color: border.withValues(alpha: 0.35),
@@ -226,11 +244,15 @@ class BookDetailsPage extends StatelessWidget {
     }
   }
 
-  Future<void> _addQuickHighlightLocally(BuildContext context, BookItem book) async {
+  Future<void> _addQuickHighlightLocally(
+    BuildContext context,
+    BookItem book,
+  ) async {
     final newHighlight = await _promptForHighlight(
       context,
       title: 'Quick Highlight',
-      helperText: 'Saved locally only. Pull to refresh to replace local cache with backend data.',
+      helperText:
+          'Saved locally only. Pull to refresh to replace local cache with backend data.',
     );
     if (newHighlight == null) return;
 
@@ -240,7 +262,10 @@ class BookDetailsPage extends StatelessWidget {
     await controller.updateBookHighlightsLocally(book.id, updatedHighlights);
   }
 
-  Future<int?> _promptForProgressValue(BuildContext context, int initialValue) async {
+  Future<int?> _promptForProgressValue(
+    BuildContext context,
+    int initialValue,
+  ) async {
     var selected = initialValue.clamp(0, 100).toInt();
 
     return showCupertinoModalPopup<int>(
@@ -255,9 +280,15 @@ class BookDetailsPage extends StatelessWidget {
                 height: 260,
                 padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
                 decoration: BoxDecoration(
-                  color: CupertinoColors.systemGroupedBackground.resolveFrom(context),
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-                  border: Border(top: BorderSide(color: border.withValues(alpha: 0.45))),
+                  color: CupertinoColors.systemGroupedBackground.resolveFrom(
+                    context,
+                  ),
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(18),
+                  ),
+                  border: Border(
+                    top: BorderSide(color: border.withValues(alpha: 0.45)),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -265,7 +296,10 @@ class BookDetailsPage extends StatelessWidget {
                     Row(
                       children: <Widget>[
                         CupertinoButton(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           minimumSize: const Size(0, 0),
                           onPressed: () => Navigator.of(sheetContext).pop(),
                           child: const Text('Cancel'),
@@ -281,9 +315,13 @@ class BookDetailsPage extends StatelessWidget {
                         ),
                         const Spacer(),
                         CupertinoButton(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           minimumSize: const Size(0, 0),
-                          onPressed: () => Navigator.of(sheetContext).pop(selected),
+                          onPressed: () =>
+                              Navigator.of(sheetContext).pop(selected),
                           child: const Text('Save'),
                         ),
                       ],
@@ -293,7 +331,9 @@ class BookDetailsPage extends StatelessWidget {
                       'Saved locally only until you manually refresh.',
                       style: TextStyle(
                         fontSize: 12.5,
-                        color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                        color: CupertinoColors.secondaryLabel.resolveFrom(
+                          context,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -313,26 +353,41 @@ class BookDetailsPage extends StatelessWidget {
                       min: 0,
                       max: 100,
                       divisions: 100,
-                      onChanged: (value) => setSheetState(() => selected = value.round()),
+                      onChanged: (value) =>
+                          setSheetState(() => selected = value.round()),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: <Widget>[
                         CupertinoButton(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           minimumSize: const Size(0, 0),
-                          color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+                          color: CupertinoColors.tertiarySystemFill.resolveFrom(
+                            context,
+                          ),
                           borderRadius: BorderRadius.circular(10),
-                          onPressed: () => setSheetState(() => selected = (selected - 5).clamp(0, 100)),
+                          onPressed: () => setSheetState(
+                            () => selected = (selected - 5).clamp(0, 100),
+                          ),
                           child: const Text('-5'),
                         ),
                         const SizedBox(width: 8),
                         CupertinoButton(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           minimumSize: const Size(0, 0),
-                          color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+                          color: CupertinoColors.tertiarySystemFill.resolveFrom(
+                            context,
+                          ),
                           borderRadius: BorderRadius.circular(10),
-                          onPressed: () => setSheetState(() => selected = (selected + 5).clamp(0, 100)),
+                          onPressed: () => setSheetState(
+                            () => selected = (selected + 5).clamp(0, 100),
+                          ),
                           child: const Text('+5'),
                         ),
                       ],
@@ -347,7 +402,10 @@ class BookDetailsPage extends StatelessWidget {
     );
   }
 
-  Future<void> _adjustQuickProgressLocally(BuildContext context, BookItem book) async {
+  Future<void> _adjustQuickProgressLocally(
+    BuildContext context,
+    BookItem book,
+  ) async {
     final picked = await _promptForProgressValue(context, book.progressPercent);
     if (picked == null) return;
     await controller.updateBookProgressLocally(book.id, picked);
@@ -367,7 +425,9 @@ class BookDetailsPage extends StatelessWidget {
             child: Center(
               child: Text(
                 'Book not found',
-                style: TextStyle(color: CupertinoColors.secondaryLabel.resolveFrom(context)),
+                style: TextStyle(
+                  color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                ),
               ),
             ),
           );
@@ -422,7 +482,9 @@ class BookDetailsPage extends StatelessWidget {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 15,
-                        color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                        color: CupertinoColors.secondaryLabel.resolveFrom(
+                          context,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 14),
@@ -430,13 +492,20 @@ class BookDetailsPage extends StatelessWidget {
                       children: <Widget>[
                         Expanded(
                           child: book.status == BookStatus.reading
-                              ? _ReadingProgressStatusCard(progressPercent: book.progressPercent)
+                              ? _ReadingProgressStatusCard(
+                                  progressPercent: book.progressPercent,
+                                )
                               : _StatusBadge(status: book.status),
                         ),
                         const SizedBox(width: 10),
                         CupertinoButton(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                          color: CupertinoColors.systemRed.withValues(alpha: 0.14),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          color: CupertinoColors.systemRed.withValues(
+                            alpha: 0.14,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                           onPressed: () => _deleteBook(context, book),
                           child: const Row(
@@ -469,7 +538,9 @@ class BookDetailsPage extends StatelessWidget {
                     SectionCard(
                       title: 'Description',
                       child: Text(
-                        book.notes.trim().isEmpty ? 'No description available.' : book.notes.trim(),
+                        book.notes.trim().isEmpty
+                            ? 'No description available.'
+                            : book.notes.trim(),
                         style: TextStyle(
                           fontSize: 14,
                           height: 1.3,
@@ -495,8 +566,10 @@ class BookDetailsPage extends StatelessWidget {
                     bottom: 12,
                     child: _ReadingQuickActionsBar(
                       progressPercent: book.progressPercent,
-                      onAddHighlight: () => _addQuickHighlightLocally(context, book),
-                      onAdjustProgress: () => _adjustQuickProgressLocally(context, book),
+                      onAddHighlight: () =>
+                          _addQuickHighlightLocally(context, book),
+                      onAdjustProgress: () =>
+                          _adjustQuickProgressLocally(context, book),
                     ),
                   ),
               ],
@@ -515,7 +588,8 @@ class _ReadingProgressStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = CupertinoTheme.of(context).brightness ?? Brightness.light;
+    final brightness =
+        CupertinoTheme.of(context).brightness ?? Brightness.light;
     final scheme = _statusScheme(BookStatus.reading, brightness);
     final progress = (progressPercent.clamp(0, 100)) / 100.0;
 
@@ -586,7 +660,8 @@ class _StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final brightness = CupertinoTheme.of(context).brightness ?? Brightness.light;
+    final brightness =
+        CupertinoTheme.of(context).brightness ?? Brightness.light;
     final scheme = _statusScheme(status, brightness);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -716,7 +791,9 @@ class _HighlightsList extends StatelessWidget {
           decoration: BoxDecoration(
             color: accent.withValues(alpha: isDark ? 0.18 : 0.10),
             borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: accent.withValues(alpha: isDark ? 0.35 : 0.22)),
+            border: Border.all(
+              color: accent.withValues(alpha: isDark ? 0.35 : 0.22),
+            ),
           ),
           child: Text(
             '${highlights.length} ${highlights.length == 1 ? 'highlight' : 'highlights'}',
@@ -772,7 +849,11 @@ class _HighlightsList extends StatelessWidget {
               children: <Widget>[
                 Row(
                   children: <Widget>[
-                    Icon(CupertinoIcons.quote_bubble, size: 16, color: secondary),
+                    Icon(
+                      CupertinoIcons.quote_bubble,
+                      size: 16,
+                      color: secondary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'No highlights yet',
@@ -811,7 +892,8 @@ class _HighlightsList extends StatelessWidget {
           final stripe = index.isEven
               ? CupertinoColors.systemBlue.resolveFrom(context)
               : CupertinoColors.systemIndigo.resolveFrom(context);
-          final baseFill = CupertinoColors.secondarySystemGroupedBackground.resolveFrom(context);
+          final baseFill = CupertinoColors.secondarySystemGroupedBackground
+              .resolveFrom(context);
           final cardFill = Color.alphaBlend(
             stripe.withValues(alpha: isDark ? 0.10 : 0.05),
             baseFill,
@@ -860,15 +942,24 @@ class _HighlightsList extends StatelessWidget {
                             ),
                             const Spacer(),
                             CupertinoButton(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 5,
+                              ),
                               minimumSize: const Size(0, 0),
-                              color: stripe.withValues(alpha: isDark ? 0.16 : 0.10),
+                              color: stripe.withValues(
+                                alpha: isDark ? 0.16 : 0.10,
+                              ),
                               borderRadius: BorderRadius.circular(9),
                               onPressed: () => onCopyHighlight(highlight),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: <Widget>[
-                                  Icon(CupertinoIcons.doc_on_doc, size: 13, color: stripe),
+                                  Icon(
+                                    CupertinoIcons.doc_on_doc,
+                                    size: 13,
+                                    color: stripe,
+                                  ),
                                   const SizedBox(width: 5),
                                   Text(
                                     'Copy',
@@ -919,10 +1010,13 @@ class _ReadingQuickActionsBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
-    final border = CupertinoColors.separator.resolveFrom(context).withValues(alpha: 0.22);
-    final background = (isDark ? const Color(0xFF121316) : CupertinoColors.white).withValues(
-      alpha: isDark ? 0.72 : 0.76,
-    );
+    final border = CupertinoColors.separator
+        .resolveFrom(context)
+        .withValues(alpha: 0.22);
+    final background =
+        (isDark ? const Color(0xFF121316) : CupertinoColors.white).withValues(
+          alpha: isDark ? 0.72 : 0.76,
+        );
 
     return SafeArea(
       top: false,
@@ -937,7 +1031,9 @@ class _ReadingQuickActionsBar extends StatelessWidget {
               border: Border.all(color: border),
               boxShadow: <BoxShadow>[
                 BoxShadow(
-                  color: CupertinoColors.black.withValues(alpha: isDark ? 0.28 : 0.12),
+                  color: CupertinoColors.black.withValues(
+                    alpha: isDark ? 0.28 : 0.12,
+                  ),
                   blurRadius: 18,
                   offset: const Offset(0, 8),
                 ),
@@ -1061,7 +1157,9 @@ class _DetailTile extends StatelessWidget {
     final baseFill = CupertinoColors.tertiarySystemFill.resolveFrom(context);
     final tileFill = Color.alphaBlend(
       tint.withValues(
-        alpha: CupertinoTheme.of(context).brightness == Brightness.dark ? 0.12 : 0.06,
+        alpha: CupertinoTheme.of(context).brightness == Brightness.dark
+            ? 0.12
+            : 0.06,
       ),
       baseFill,
     );
@@ -1071,9 +1169,7 @@ class _DetailTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: tileFill,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: border.withValues(alpha: 0.22),
-        ),
+        border: Border.all(color: border.withValues(alpha: 0.22)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1089,11 +1185,7 @@ class _DetailTile extends StatelessWidget {
                   border: Border.all(color: tint.withValues(alpha: 0.16)),
                 ),
                 alignment: Alignment.center,
-                child: Icon(
-                  tile.icon,
-                  size: 13,
-                  color: tint,
-                ),
+                child: Icon(tile.icon, size: 13, color: tint),
               ),
               const SizedBox(width: 8),
               Expanded(

@@ -2,8 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:book_app_themed/models/book.dart';
+import 'package:book_app_themed/services/book_discovery_service.dart';
 import 'package:book_app_themed/services/backend_api_service.dart';
 import 'package:book_app_themed/services/app_storage_service.dart';
+import 'package:book_app_themed/services/local_backup_service.dart';
+import 'package:book_app_themed/services/local_media_service.dart';
 import 'package:flutter/cupertino.dart';
 
 enum AppAuthSessionType {
@@ -42,11 +45,20 @@ class AppController extends ChangeNotifier {
   AppController({
     required AppStorageService storage,
     BackendApiService backendApi = const BackendApiService(),
+    BookDiscoveryService bookDiscovery = const BookDiscoveryService(),
+    LocalMediaService localMedia = const LocalMediaService(),
+    LocalBackupService localBackup = const LocalBackupService(),
   }) : _storage = storage,
-       _backendApi = backendApi;
+       _backendApi = backendApi,
+       _bookDiscovery = bookDiscovery,
+       _localMedia = localMedia,
+       _localBackup = localBackup;
 
   final AppStorageService _storage;
   final BackendApiService _backendApi;
+  final BookDiscoveryService _bookDiscovery;
+  final LocalMediaService _localMedia;
+  final LocalBackupService _localBackup;
 
   final List<BookItem> _books = <BookItem>[];
   bool _isDarkMode = false;
@@ -76,7 +88,7 @@ class AppController extends ChangeNotifier {
   String get authEmail => _authEmail;
   String get authStatusLabel => switch (_authSessionType) {
     AppAuthSessionType.none => 'Signed out',
-    AppAuthSessionType.guest => 'Guest',
+    AppAuthSessionType.guest => 'Guest (Local mode)',
     AppAuthSessionType.account => 'Logged in',
   };
   bool get shouldShowOnboarding => !_isLoading && !_hasSeenOnboarding;
@@ -191,6 +203,41 @@ class AppController extends ChangeNotifier {
     notifyListeners();
     await _storage.saveBooks(_books);
     await _markLocalBookChanges();
+  }
+
+  Future<String?> pickAndStoreLocalCoverImage() {
+    return _localMedia.pickAndStoreBookCoverImage();
+  }
+
+  Future<List<ExternalBookSearchResult>> searchDirectBookSources(String query) {
+    return _bookDiscovery.search(query);
+  }
+
+  Future<void> addLocalBookFromDiscoveryResult(
+    ExternalBookSearchResult result,
+  ) {
+    return addBook(result.toDraft());
+  }
+
+  Future<String> exportLocalBackup() async {
+    final snapshot = _currentSnapshot();
+    final localCoverPaths = _books
+        .map((book) => book.coverUrl.trim())
+        .where(_isLocalCoverPath)
+        .toList(growable: false);
+    return _localBackup.exportBackup(
+      LocalBackupExportPayload(
+        snapshotJson: _storage.snapshotToJson(snapshot),
+        localCoverPaths: localCoverPaths,
+      ),
+    );
+  }
+
+  Future<void> importLocalBackup() async {
+    final imported = await _localBackup.importBackup();
+    final snapshot = _storage.snapshotFromJson(imported.snapshotJson);
+    _applySnapshot(snapshot);
+    await _storage.saveSnapshot(snapshot);
   }
 
   Future<void> updateBook(String bookId, BookDraft draft) async {
@@ -573,5 +620,55 @@ class AppController extends ChangeNotifier {
       displayName: _authDisplayName,
       email: _authEmail,
     );
+  }
+
+  AppStorageSnapshot _currentSnapshot() {
+    return AppStorageSnapshot(
+      books: List<BookItem>.unmodifiable(_books),
+      isDarkMode: _isDarkMode,
+      hasSeenOnboarding: _hasSeenOnboarding,
+      authMode: _authSessionType.storageValue,
+      authDisplayName: _authDisplayName,
+      authEmail: _authEmail,
+      backendApiUrl: _backendApiUrl,
+      backendPassword: _backendPassword,
+      backendCachePrimed: _backendCachePrimed,
+      hasLocalBookChanges: _hasLocalBookChanges,
+      lastBackendSyncAtIso: _lastBackendSyncAtIso,
+    );
+  }
+
+  void _applySnapshot(AppStorageSnapshot snapshot) {
+    _books
+      ..clear()
+      ..addAll(snapshot.books);
+    _isDarkMode = snapshot.isDarkMode;
+    _hasSeenOnboarding = snapshot.hasSeenOnboarding;
+    _authSessionType = AppAuthSessionType.fromStorageValue(snapshot.authMode);
+    _authDisplayName = snapshot.authDisplayName;
+    _authEmail = snapshot.authEmail;
+    _backendApiUrl = snapshot.backendApiUrl.trim().isEmpty
+        ? defaultBackendApiUrl
+        : snapshot.backendApiUrl;
+    _backendPassword = snapshot.backendPassword;
+    _backendCachePrimed = snapshot.backendCachePrimed;
+    _hasLocalBookChanges = snapshot.hasLocalBookChanges;
+    _lastBackendSyncAtIso = snapshot.lastBackendSyncAtIso;
+    if (_books.isNotEmpty) {
+      final selectedExists = _books.any((b) => b.status == _selectedShelf);
+      if (!selectedExists) {
+        _selectedShelf = _books.first.status;
+      }
+    }
+    notifyListeners();
+  }
+
+  bool _isLocalCoverPath(String path) {
+    if (path.isEmpty) return false;
+    final uri = Uri.tryParse(path);
+    if (uri != null && uri.hasScheme) {
+      return uri.scheme == 'file';
+    }
+    return path.startsWith('/');
   }
 }

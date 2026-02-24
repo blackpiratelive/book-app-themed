@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 
@@ -30,28 +32,53 @@ class BookCover extends StatelessWidget {
           decoration: BoxDecoration(
             color: CupertinoColors.systemGrey6.resolveFrom(context),
           ),
-          child: coverUrl.trim().isEmpty
-              ? _DefaultCover(title: title)
-              : CachedNetworkImage(
-                  imageUrl: coverUrl.trim(),
-                  fit: BoxFit.cover,
-                  errorWidget: (_, __, ___) => _DefaultCover(title: title),
-                  placeholder: (context, _) {
-                    return Stack(
-                      fit: StackFit.expand,
-                      children: <Widget>[
-                        _DefaultCover(title: title),
-                        const Center(child: CupertinoActivityIndicator()),
-                      ],
-                    );
-                  },
-                ),
+          child: _buildCoverContent(context),
         ),
       ),
     );
 
     if (heroTag == null) return child;
     return Hero(tag: heroTag!, child: child);
+  }
+
+  Widget _buildCoverContent(BuildContext context) {
+    final value = coverUrl.trim();
+    if (value.isEmpty) return _DefaultCover(title: title);
+
+    final localFile = _asLocalFile(value);
+    if (localFile != null) {
+      return Image.file(
+        localFile,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _DefaultCover(title: title),
+      );
+    }
+
+    return CachedNetworkImage(
+      imageUrl: value,
+      fit: BoxFit.cover,
+      errorWidget: (_, __, ___) => _DefaultCover(title: title),
+      placeholder: (context, _) {
+        return Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            _DefaultCover(title: title),
+            const Center(child: CupertinoActivityIndicator()),
+          ],
+        );
+      },
+    );
+  }
+
+  File? _asLocalFile(String raw) {
+    final uri = Uri.tryParse(raw);
+    if (uri != null && uri.scheme == 'file') {
+      final path = uri.toFilePath();
+      if (path.trim().isEmpty) return null;
+      return File(path);
+    }
+    if (raw.startsWith('/')) return File(raw);
+    return null;
   }
 }
 

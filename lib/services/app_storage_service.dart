@@ -74,6 +74,71 @@ class AppStorageService {
     await prefs.setString(_booksKey, payload);
   }
 
+  Future<void> saveSnapshot(AppStorageSnapshot snapshot) async {
+    final prefs = await SharedPreferences.getInstance();
+    final booksPayload = jsonEncode(
+      snapshot.books.map((b) => b.toJson()).toList(),
+    );
+    await prefs.setString(_booksKey, booksPayload);
+    await prefs.setBool(_darkModeKey, snapshot.isDarkMode);
+    await prefs.setBool(_hasSeenOnboardingKey, snapshot.hasSeenOnboarding);
+    await prefs.setString(_authModeKey, snapshot.authMode.trim());
+    await prefs.setString(_authDisplayNameKey, snapshot.authDisplayName.trim());
+    await prefs.setString(_authEmailKey, snapshot.authEmail.trim());
+    await prefs.setString(_backendApiUrlKey, snapshot.backendApiUrl.trim());
+    await prefs.setString(_backendPasswordKey, snapshot.backendPassword);
+    await prefs.setBool(_backendCachePrimedKey, snapshot.backendCachePrimed);
+    await prefs.setBool(_backendLocalChangesKey, snapshot.hasLocalBookChanges);
+    if (snapshot.lastBackendSyncAtIso == null ||
+        snapshot.lastBackendSyncAtIso!.trim().isEmpty) {
+      await prefs.remove(_backendLastSyncAtKey);
+    } else {
+      await prefs.setString(
+        _backendLastSyncAtKey,
+        snapshot.lastBackendSyncAtIso!.trim(),
+      );
+    }
+  }
+
+  Map<String, dynamic> snapshotToJson(AppStorageSnapshot snapshot) {
+    return <String, dynamic>{
+      'books': snapshot.books.map((b) => b.toJson()).toList(growable: false),
+      'isDarkMode': snapshot.isDarkMode,
+      'hasSeenOnboarding': snapshot.hasSeenOnboarding,
+      'authMode': snapshot.authMode,
+      'authDisplayName': snapshot.authDisplayName,
+      'authEmail': snapshot.authEmail,
+      'backendApiUrl': snapshot.backendApiUrl,
+      'backendPassword': snapshot.backendPassword,
+      'backendCachePrimed': snapshot.backendCachePrimed,
+      'hasLocalBookChanges': snapshot.hasLocalBookChanges,
+      'lastBackendSyncAtIso': snapshot.lastBackendSyncAtIso,
+    };
+  }
+
+  AppStorageSnapshot snapshotFromJson(Map<String, dynamic> json) {
+    final rawBooks = json['books'];
+    final books = rawBooks is List
+        ? rawBooks
+              .whereType<Map>()
+              .map((item) => BookItem.fromJson(Map<String, dynamic>.from(item)))
+              .toList(growable: false)
+        : const <BookItem>[];
+    return AppStorageSnapshot(
+      books: books,
+      isDarkMode: json['isDarkMode'] as bool? ?? false,
+      hasSeenOnboarding: json['hasSeenOnboarding'] as bool? ?? false,
+      authMode: (json['authMode'] as String? ?? '').trim(),
+      authDisplayName: (json['authDisplayName'] as String? ?? '').trim(),
+      authEmail: (json['authEmail'] as String? ?? '').trim(),
+      backendApiUrl: (json['backendApiUrl'] as String? ?? '').trim(),
+      backendPassword: (json['backendPassword'] as String? ?? ''),
+      backendCachePrimed: json['backendCachePrimed'] as bool? ?? false,
+      hasLocalBookChanges: json['hasLocalBookChanges'] as bool? ?? false,
+      lastBackendSyncAtIso: _cleanNullableString(json['lastBackendSyncAtIso']),
+    );
+  }
+
   Future<void> saveDarkMode(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_darkModeKey, value);

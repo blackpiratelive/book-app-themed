@@ -30,6 +30,9 @@ State and persistence:
 - `lib/state/app_controller.dart`: app state, filtering, CRUD, dark mode, frontend auth session UI state, persistence orchestration
 - `lib/services/app_storage_service.dart`: `shared_preferences` load/save (books, settings, backend config, onboarding, frontend auth session)
 - `lib/services/backend_api_service.dart`: backend HTTP client (`/api/public`, `/api/books`) + server-row mapping
+- `lib/services/book_discovery_service.dart`: direct OpenLibrary + Google Books search (local add flow)
+- `lib/services/local_media_service.dart`: device image picker + local cover file storage
+- `lib/services/local_backup_service.dart`: zip import/export of local app data + local cover image files
 
 Pages:
 - `lib/pages/auth_gate_page.dart` (first-open login/signup/guest UI; frontend-only placeholder auth)
@@ -38,6 +41,7 @@ Pages:
 - `lib/pages/book_details_page.dart`
 - `lib/pages/book_editor_page.dart`
 - `lib/pages/book_search_page.dart` (backend search + add to Reading List)
+- `lib/pages/direct_book_search_page.dart` (OpenLibrary + Google Books direct search + local add)
 - `lib/pages/stats_page.dart` (local-cache stats + charts)
 - `lib/pages/settings_page.dart`
 
@@ -168,6 +172,7 @@ Features:
   - Title
   - Author
   - Cover image URL
+  - Cover image upload from device (stored locally in app documents dir)
   - Page count
   - Notes
 - Reading status selector:
@@ -187,6 +192,9 @@ Features:
 - Clear date buttons
 - Save/Cancel in top navigation bar
 
+Important backend note:
+- API docs do not currently expose a cover image file upload endpoint, so device-uploaded cover images remain local-only and are not sent to backend APIs.
+
 Validation behavior:
 - Save is enabled when title is non-empty
 - Numeric parsing for page count is tolerant (`int.tryParse`, defaults to `0`)
@@ -202,12 +210,14 @@ Implemented in:
 Features:
 - Tapping the home `+` button now shows an action sheet:
   - `Search Library (API)`
+  - `Search OpenLibrary + Google Books`
   - `Add Manually`
 - Backend search uses `/api/search`
 - Search results show an `Add to Reading List` button per result
 - Adding via search uses `/api/books` `POST` with `action: "add"` and `shelf: "watchlist"`
 - Search/add flows show loading/status messages because responses may take time
 - Successful add inserts/updates the local cached list immediately and switches shelf to `Reading List`
+- Direct search (OpenLibrary + Google Books) adds books locally only (guest/local mode friendly) and preserves remote cover URLs from those APIs on the local book record
 
 ### 9. Home Pull-To-Refresh (Backend Diff Sync)
 
@@ -226,6 +236,8 @@ Behavior:
 Implemented in `lib/pages/settings_page.dart`.
 
 Features:
+- Account section clarifies auth/local mode behavior
+  - Guest mode is the local mode
 - Dark mode toggle (real setting, persisted)
 - Account section (frontend-only auth status)
   - Shows `Logged in`, `Guest`, or `Signed out`
@@ -238,6 +250,10 @@ Features:
   - `Force Reload From API` button
   - Backend cache / local changes / last sync status rows
   - Confirmation dialog before force reload if local changes exist
+- Local Data (Guest Mode) section
+  - Export local backup to zip
+  - Import local backup from zip (replaces local data)
+  - Backup includes books, local settings/session UI state, backend config, and local cover image files
 
 ### 11. Dark Mode
 
@@ -256,10 +272,22 @@ Behavior:
 - Users can choose:
   - `Sign Up` (UI-only local session)
   - `Log In` (UI-only local session)
-  - `Continue as Guest`
+  - `Continue as Guest` (local mode)
 - No backend auth calls are made yet (placeholder frontend flow only)
 - Selected auth session is persisted locally so the auth gate is skipped on later launches until logout
 - Existing onboarding still appears after auth if it has not been completed yet
+
+### 13. Local Backup Import/Export (Books + Settings + Local Cover Files)
+
+Implemented in:
+- `lib/services/local_backup_service.dart`
+- `lib/state/app_controller.dart`
+- `lib/pages/settings_page.dart`
+
+Behavior:
+- Export creates a zip backup containing a manifest snapshot of local app data and bundled local cover image files
+- Import restores local app data and extracts local cover files, rewriting book cover file paths to the current device app storage directory
+- Intended primarily for guest/local mode portability and device migration
 
 ## Agent Workflow Expectation
 

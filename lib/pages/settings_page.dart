@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:book_app_themed/services/local_backup_service.dart';
 import 'package:book_app_themed/state/app_controller.dart';
 import 'package:book_app_themed/widgets/section_card.dart';
 import 'package:flutter/cupertino.dart';
@@ -19,6 +20,7 @@ class _SettingsPageState extends State<SettingsPage> {
   late final TextEditingController _apiController;
   late String _password;
   String? _localStatusMessage;
+  bool _isBackupBusy = false;
 
   @override
   void initState() {
@@ -187,6 +189,82 @@ class _SettingsPageState extends State<SettingsPage> {
     await widget.controller.logout();
   }
 
+  Future<void> _exportLocalBackup() async {
+    if (_isBackupBusy) return;
+    setState(() {
+      _isBackupBusy = true;
+      _localStatusMessage = 'Preparing local backup export...';
+    });
+    try {
+      final path = await widget.controller.exportLocalBackup();
+      if (!mounted) return;
+      setState(() => _localStatusMessage = 'Exported local backup to: $path');
+    } on LocalBackupException catch (e) {
+      if (!mounted) return;
+      setState(() => _localStatusMessage = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _localStatusMessage = 'Local backup export failed.');
+    } finally {
+      if (mounted) {
+        setState(() => _isBackupBusy = false);
+      }
+    }
+  }
+
+  Future<void> _importLocalBackup() async {
+    if (_isBackupBusy) return;
+    final confirmed =
+        await showCupertinoDialog<bool>(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text('Import local backup?'),
+            content: const Text(
+              'This replaces current local books, settings, guest/account session UI state, and backend config on this device.',
+            ),
+            actions: <Widget>[
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              CupertinoDialogAction(
+                isDestructiveAction: true,
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Import'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+
+    setState(() {
+      _isBackupBusy = true;
+      _localStatusMessage = 'Importing local backup...';
+    });
+    try {
+      await widget.controller.importLocalBackup();
+      if (!mounted) return;
+      _apiController.text = widget.controller.backendApiUrl.isEmpty
+          ? _defaultApiUrl
+          : widget.controller.backendApiUrl;
+      _password = widget.controller.backendPassword;
+      setState(
+        () => _localStatusMessage = 'Local backup imported successfully.',
+      );
+    } on LocalBackupException catch (e) {
+      if (!mounted) return;
+      setState(() => _localStatusMessage = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _localStatusMessage = 'Local backup import failed.');
+    } finally {
+      if (mounted) {
+        setState(() => _isBackupBusy = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -253,6 +331,77 @@ class _SettingsPageState extends State<SettingsPage> {
                           ),
                         ),
                       ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SectionCard(
+                  title: 'Local Data (Guest Mode)',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Guest mode is local mode. Export/import saves books, preferences, session UI state, backend settings, and local cover image files.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: CupertinoColors.secondaryLabel.resolveFrom(
+                            context,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: <Widget>[
+                          Expanded(
+                            child: CupertinoButton(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              color: CupertinoColors.activeBlue,
+                              borderRadius: BorderRadius.circular(12),
+                              onPressed: _isBackupBusy
+                                  ? null
+                                  : _exportLocalBackup,
+                              child: _isBackupBusy
+                                  ? const CupertinoActivityIndicator(
+                                      color: CupertinoColors.white,
+                                    )
+                                  : const Text(
+                                      'Export Backup',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w700,
+                                        color: CupertinoColors.white,
+                                      ),
+                                    ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: CupertinoButton(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              color: CupertinoColors.tertiarySystemFill
+                                  .resolveFrom(context),
+                              borderRadius: BorderRadius.circular(12),
+                              onPressed: _isBackupBusy
+                                  ? null
+                                  : _importLocalBackup,
+                              child: Text(
+                                'Import Backup',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  color: CupertinoColors.label.resolveFrom(
+                                    context,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),

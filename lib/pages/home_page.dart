@@ -2,6 +2,7 @@ import 'package:book_app_themed/models/book.dart';
 import 'package:book_app_themed/pages/book_details_page.dart';
 import 'package:book_app_themed/pages/book_editor_page.dart';
 import 'package:book_app_themed/pages/book_search_page.dart';
+import 'package:book_app_themed/pages/direct_book_search_page.dart';
 import 'package:book_app_themed/pages/settings_page.dart';
 import 'package:book_app_themed/pages/stats_page.dart';
 import 'package:book_app_themed/state/app_controller.dart';
@@ -25,11 +26,18 @@ class HomePage extends StatelessWidget {
           message: const Text('Choose how you want to add a book.'),
           actions: <Widget>[
             CupertinoActionSheetAction(
-              onPressed: () => Navigator.of(sheetContext).pop(_AddBookChoice.search),
+              onPressed: () =>
+                  Navigator.of(sheetContext).pop(_AddBookChoice.search),
               child: const Text('Search Library (API)'),
             ),
             CupertinoActionSheetAction(
-              onPressed: () => Navigator.of(sheetContext).pop(_AddBookChoice.manual),
+              onPressed: () =>
+                  Navigator.of(sheetContext).pop(_AddBookChoice.directSearch),
+              child: const Text('Search OpenLibrary + Google Books'),
+            ),
+            CupertinoActionSheetAction(
+              onPressed: () =>
+                  Navigator.of(sheetContext).pop(_AddBookChoice.manual),
               child: const Text('Add Manually'),
             ),
           ],
@@ -50,10 +58,17 @@ class HomePage extends StatelessWidget {
           ),
         );
         return;
+      case _AddBookChoice.directSearch:
+        await navigator.push<void>(
+          CupertinoPageRoute<void>(
+            builder: (_) => DirectBookSearchPage(controller: controller),
+          ),
+        );
+        return;
       case _AddBookChoice.manual:
         final draft = await navigator.push<BookDraft>(
           CupertinoPageRoute<BookDraft>(
-            builder: (_) => const BookEditorPage(),
+            builder: (_) => BookEditorPage(controller: controller),
           ),
         );
         if (draft == null) return;
@@ -83,7 +98,8 @@ class HomePage extends StatelessWidget {
   Future<void> _openBookDetails(BuildContext context, BookItem book) async {
     await Navigator.of(context).push<void>(
       CupertinoPageRoute<void>(
-        builder: (_) => BookDetailsPage(controller: controller, bookId: book.id),
+        builder: (_) =>
+            BookDetailsPage(controller: controller, bookId: book.id),
       ),
     );
   }
@@ -142,7 +158,9 @@ class HomePage extends StatelessWidget {
                                     style: TextStyle(
                                       fontSize: 34,
                                       fontWeight: FontWeight.w800,
-                                      color: CupertinoColors.label.resolveFrom(context),
+                                      color: CupertinoColors.label.resolveFrom(
+                                        context,
+                                      ),
                                       height: 1.05,
                                     ),
                                   ),
@@ -155,7 +173,8 @@ class HomePage extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                                color: CupertinoColors.secondaryLabel
+                                    .resolveFrom(context),
                                 letterSpacing: 0.2,
                               ),
                             ),
@@ -179,8 +198,10 @@ class HomePage extends StatelessWidget {
                       _CircleActionButton(
                         icon: CupertinoIcons.clear_circled_solid,
                         iconSize: 20,
-                        onPressed: () => controller.setSelectedShelf(BookStatus.abandoned),
-                        isSelected: controller.selectedShelf == BookStatus.abandoned,
+                        onPressed: () =>
+                            controller.setSelectedShelf(BookStatus.abandoned),
+                        isSelected:
+                            controller.selectedShelf == BookStatus.abandoned,
                         tintColor: CupertinoColors.systemRed,
                       ),
                       const SizedBox(width: 10),
@@ -219,16 +240,16 @@ class HomePage extends StatelessWidget {
                         SliverPadding(
                           padding: const EdgeInsets.fromLTRB(16, 4, 16, 116),
                           sliver: SliverList(
-                            delegate: SliverChildBuilderDelegate(
-                              (context, index) {
-                                final book = visibleBooks[index];
-                                return BookCard(
-                                  book: book,
-                                  onTap: () => _openBookDetails(context, book),
-                                );
-                              },
-                              childCount: visibleBooks.length,
-                            ),
+                            delegate: SliverChildBuilderDelegate((
+                              context,
+                              index,
+                            ) {
+                              final book = visibleBooks[index];
+                              return BookCard(
+                                book: book,
+                                onTap: () => _openBookDetails(context, book),
+                              );
+                            }, childCount: visibleBooks.length),
                           ),
                         ),
                     ],
@@ -253,10 +274,7 @@ class HomePage extends StatelessWidget {
   }
 }
 
-enum _AddBookChoice {
-  search,
-  manual,
-}
+enum _AddBookChoice { search, directSearch, manual }
 
 class _CircleActionButton extends StatelessWidget {
   const _CircleActionButton({
@@ -284,13 +302,13 @@ class _CircleActionButton extends StatelessWidget {
     final bg = isPrimary
         ? CupertinoColors.activeBlue
         : isSelected
-            ? accent.withValues(alpha: 0.18)
-            : CupertinoColors.tertiarySystemFill.resolveFrom(context);
+        ? accent.withValues(alpha: 0.18)
+        : CupertinoColors.tertiarySystemFill.resolveFrom(context);
     final fg = isPrimary
         ? CupertinoColors.white
         : isSelected
-            ? accent
-            : CupertinoColors.label.resolveFrom(context);
+        ? accent
+        : CupertinoColors.label.resolveFrom(context);
 
     return CupertinoButton(
       padding: EdgeInsets.zero,
@@ -299,10 +317,7 @@ class _CircleActionButton extends StatelessWidget {
       child: Container(
         width: 42,
         height: 42,
-        decoration: BoxDecoration(
-          color: bg,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
         alignment: Alignment.center,
         child: Icon(icon, size: iconSize, color: fg),
       ),
@@ -311,10 +326,7 @@ class _CircleActionButton extends StatelessWidget {
 }
 
 class _EmptyShelf extends StatelessWidget {
-  const _EmptyShelf({
-    required this.status,
-    required this.onAddBook,
-  });
+  const _EmptyShelf({required this.status, required this.onAddBook});
 
   final BookStatus status;
   final VoidCallback onAddBook;

@@ -1,11 +1,14 @@
 import 'package:book_app_themed/models/book.dart';
+import 'package:book_app_themed/state/app_controller.dart';
 import 'package:book_app_themed/utils/date_formatters.dart';
+import 'package:book_app_themed/widgets/book_cover.dart';
 import 'package:book_app_themed/widgets/section_card.dart';
 import 'package:flutter/cupertino.dart';
 
 class BookEditorPage extends StatefulWidget {
-  const BookEditorPage({super.key, this.existing});
+  const BookEditorPage({super.key, required this.controller, this.existing});
 
+  final AppController controller;
   final BookItem? existing;
 
   @override
@@ -25,6 +28,7 @@ class _BookEditorPageState extends State<BookEditorPage> {
   late double _progress;
   DateTime? _startDate;
   DateTime? _endDate;
+  bool _isPickingCoverImage = false;
 
   bool get _canSave => _titleController.text.trim().isNotEmpty;
 
@@ -74,6 +78,20 @@ class _BookEditorPageState extends State<BookEditorPage> {
     });
   }
 
+  Future<void> _pickCoverImageFromDevice() async {
+    if (_isPickingCoverImage) return;
+    setState(() => _isPickingCoverImage = true);
+    try {
+      final path = await widget.controller.pickAndStoreLocalCoverImage();
+      if (path == null || path.trim().isEmpty || !mounted) return;
+      setState(() => _coverUrlController.text = path);
+    } finally {
+      if (mounted) {
+        setState(() => _isPickingCoverImage = false);
+      }
+    }
+  }
+
   Future<void> _pickEndDate() async {
     final picked = await _showDatePicker(initialDate: _endDate ?? _startDate);
     if (picked == null) return;
@@ -102,14 +120,20 @@ class _BookEditorPageState extends State<BookEditorPage> {
                 child: Row(
                   children: <Widget>[
                     CupertinoButton(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       minimumSize: const Size.square(28),
                       onPressed: () => Navigator.of(context).pop(),
                       child: const Text('Cancel'),
                     ),
                     const Spacer(),
                     CupertinoButton(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       minimumSize: const Size.square(28),
                       onPressed: () => Navigator.of(context).pop(selected),
                       child: const Text('Done'),
@@ -188,7 +212,10 @@ class _BookEditorPageState extends State<BookEditorPage> {
                   CupertinoTextField(
                     controller: _titleController,
                     placeholder: 'Book title',
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
                     decoration: _fieldDecoration(context),
                     textCapitalization: TextCapitalization.words,
                   ),
@@ -197,7 +224,10 @@ class _BookEditorPageState extends State<BookEditorPage> {
                   CupertinoTextField(
                     controller: _authorController,
                     placeholder: 'Author name',
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
                     decoration: _fieldDecoration(context),
                     textCapitalization: TextCapitalization.words,
                   ),
@@ -206,26 +236,108 @@ class _BookEditorPageState extends State<BookEditorPage> {
                   CupertinoTextField(
                     controller: _coverUrlController,
                     placeholder: 'https://example.com/cover.jpg',
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
                     decoration: _fieldDecoration(context),
                     keyboardType: TextInputType.url,
                     autocorrect: false,
                   ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: CupertinoButton(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          color: CupertinoColors.tertiarySystemFill.resolveFrom(
+                            context,
+                          ),
+                          borderRadius: BorderRadius.circular(12),
+                          onPressed: _isPickingCoverImage
+                              ? null
+                              : _pickCoverImageFromDevice,
+                          child: _isPickingCoverImage
+                              ? const CupertinoActivityIndicator()
+                              : Text(
+                                  'Upload From Device',
+                                  style: TextStyle(
+                                    color: CupertinoColors.label.resolveFrom(
+                                      context,
+                                    ),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Backend API docs do not expose image upload endpoints, so selected cover files are kept locally.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: CupertinoColors.secondaryLabel.resolveFrom(
+                        context,
+                      ),
+                    ),
+                  ),
+                  if (_coverUrlController.text.trim().isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 10),
+                    Row(
+                      children: <Widget>[
+                        BookCover(
+                          title: _titleController.text.trim().isEmpty
+                              ? 'Book'
+                              : _titleController.text.trim(),
+                          coverUrl: _coverUrlController.text.trim(),
+                          width: 54,
+                          height: 78,
+                          borderRadius: 10,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _coverUrlController.text.trim(),
+                            maxLines: 3,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: CupertinoColors.secondaryLabel.resolveFrom(
+                                context,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   const _FieldLabel('Page Count'),
                   CupertinoTextField(
                     controller: _pageCountController,
                     placeholder: 'e.g. 320',
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
                     decoration: _fieldDecoration(context),
-                    keyboardType: const TextInputType.numberWithOptions(decimal: false),
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: false,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   const _FieldLabel('Notes'),
                   CupertinoTextField(
                     controller: _notesController,
                     placeholder: 'Notes about this book',
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
                     decoration: _fieldDecoration(context),
                     maxLines: 4,
                     textCapitalization: TextCapitalization.sentences,
@@ -242,14 +354,16 @@ class _BookEditorPageState extends State<BookEditorPage> {
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: BookStatus.values.map((status) {
-                      return _ChoiceChipButton(
-                        icon: status.icon,
-                        label: status.label,
-                        selected: _status == status,
-                        onPressed: () => setState(() => _status = status),
-                      );
-                    }).toList(growable: false),
+                    children: BookStatus.values
+                        .map((status) {
+                          return _ChoiceChipButton(
+                            icon: status.icon,
+                            label: status.label,
+                            selected: _status == status,
+                            onPressed: () => setState(() => _status = status),
+                          );
+                        })
+                        .toList(growable: false),
                   ),
                   const SizedBox(height: 14),
                   Text(
@@ -285,13 +399,19 @@ class _BookEditorPageState extends State<BookEditorPage> {
                         padding: const EdgeInsets.only(right: 4),
                         minimumSize: const Size.square(30),
                         onPressed: () => setState(() {
-                          _rating = active && _rating == value ? value - 1 : value;
+                          _rating = active && _rating == value
+                              ? value - 1
+                              : value;
                         }),
                         child: Icon(
-                          active ? CupertinoIcons.star_fill : CupertinoIcons.star,
+                          active
+                              ? CupertinoIcons.star_fill
+                              : CupertinoIcons.star,
                           color: active
                               ? CupertinoColors.systemYellow
-                              : CupertinoColors.systemGrey3.resolveFrom(context),
+                              : CupertinoColors.systemGrey3.resolveFrom(
+                                  context,
+                                ),
                           size: 22,
                         ),
                       );
@@ -332,17 +452,25 @@ class _BookEditorPageState extends State<BookEditorPage> {
                   _DateRow(
                     icon: CupertinoIcons.calendar,
                     label: 'Start Date',
-                    value: _startDate == null ? 'Not set' : formatDateShort(toDateOnlyIso(_startDate!)),
+                    value: _startDate == null
+                        ? 'Not set'
+                        : formatDateShort(toDateOnlyIso(_startDate!)),
                     onPick: _pickStartDate,
-                    onClear: _startDate == null ? null : () => setState(() => _startDate = null),
+                    onClear: _startDate == null
+                        ? null
+                        : () => setState(() => _startDate = null),
                   ),
                   const SizedBox(height: 10),
                   _DateRow(
                     icon: CupertinoIcons.calendar_today,
                     label: 'End Date',
-                    value: _endDate == null ? 'Not set' : formatDateShort(toDateOnlyIso(_endDate!)),
+                    value: _endDate == null
+                        ? 'Not set'
+                        : formatDateShort(toDateOnlyIso(_endDate!)),
                     onPick: _pickEndDate,
-                    onClear: _endDate == null ? null : () => setState(() => _endDate = null),
+                    onClear: _endDate == null
+                        ? null
+                        : () => setState(() => _endDate = null),
                   ),
                 ],
               ),
@@ -359,7 +487,9 @@ BoxDecoration _fieldDecoration(BuildContext context) {
     color: CupertinoColors.systemBackground.resolveFrom(context),
     borderRadius: BorderRadius.circular(12),
     border: Border.all(
-      color: CupertinoColors.separator.resolveFrom(context).withValues(alpha: 0.35),
+      color: CupertinoColors.separator
+          .resolveFrom(context)
+          .withValues(alpha: 0.35),
     ),
   );
 }
@@ -416,7 +546,9 @@ class _ChoiceChipButton extends StatelessWidget {
               : CupertinoColors.tertiarySystemFill.resolveFrom(context),
           borderRadius: BorderRadius.circular(999),
           border: Border.all(
-            color: selected ? CupertinoColors.activeBlue : border.withValues(alpha: 0.35),
+            color: selected
+                ? CupertinoColors.activeBlue
+                : border.withValues(alpha: 0.35),
           ),
         ),
         child: Row(
@@ -474,7 +606,11 @@ class _DateRow extends StatelessWidget {
       ),
       child: Row(
         children: <Widget>[
-          Icon(icon, size: 18, color: CupertinoColors.secondaryLabel.resolveFrom(context)),
+          Icon(
+            icon,
+            size: 18,
+            color: CupertinoColors.secondaryLabel.resolveFrom(context),
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Column(
