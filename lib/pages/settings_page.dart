@@ -443,7 +443,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   title: 'About',
                   child: CupertinoButton(
                     padding: EdgeInsets.zero,
-                    minSize: 0,
+                    minimumSize: Size.zero,
                     onPressed: _onVersionTap,
                     child: Container(
                       width: double.infinity,

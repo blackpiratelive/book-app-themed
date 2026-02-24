@@ -125,7 +125,7 @@ class AppController extends ChangeNotifier {
       .toList(growable: false);
 
   CupertinoThemeData get themeData =>
-      CupertinoThemeData(primaryColor: CupertinoColors.activeBlue);
+      const CupertinoThemeData(primaryColor: CupertinoColors.activeBlue);
 
   Future<void> initialize() async {
     final snapshot = await _storage.load();

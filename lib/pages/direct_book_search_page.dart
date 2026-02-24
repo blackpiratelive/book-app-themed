@@ -347,7 +347,7 @@ class _MiniAddButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return CupertinoButton(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      minSize: 0,
+      minimumSize: Size.zero,
       color: onPressed == null
           ? CupertinoColors.systemGrey4.resolveFrom(context)
           : color,
