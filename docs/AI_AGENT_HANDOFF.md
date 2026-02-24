@@ -31,7 +31,7 @@ State and persistence:
 - `lib/state/app_controller.dart`: app state, filtering, CRUD, dark mode, auth session state, backend-mode switching (guest legacy API vs account v1 API), persistence orchestration
 - `lib/services/app_storage_service.dart`: `shared_preferences` load/save (books, settings, backend config/token, onboarding, frontend auth session)
 - `lib/services/backend_api_service.dart`: backend HTTP client for both legacy (`/api/public`, `/api/books`) and account v1 (`/api/v1/*`) APIs, including v1 cover upload
-- `lib/services/firebase_auth_service.dart`: Firebase Auth email/password signup/login, email verification send, and ID token retrieval
+- `lib/services/firebase_auth_service.dart`: Firebase Auth email/password + Google sign-in, email verification send, password reset email, and ID token retrieval
 - `lib/services/book_discovery_service.dart`: direct OpenLibrary + Google Books search (local add flow)
 - `lib/services/local_media_service.dart`: device image picker + local cover file storage
 - `lib/services/local_backup_service.dart`: zip import/export of local app data + local cover image files
@@ -280,8 +280,10 @@ Behavior:
 - Users can choose:
   - `Sign Up` (Firebase email/password)
   - `Log In` (Firebase email/password)
-  - `Continue as Guest` (local mode)
+  - `Continue with Google` (Firebase Google sign-in)
+  - hidden guest mode (local mode)
 - Signup/login use Firebase Auth and then call backend `GET /api/v1/me` to bootstrap account session
+- Google sign-in also authenticates through Firebase and uses the same backend v1 bootstrap flow
 - Signup sends a Firebase email verification email for unverified users
 - Hidden guest mode trigger: long-press the app icon on the auth gate (visible guest button removed)
 - Auth gate UI copy was simplified (technical backend text removed); login mode now includes a `Forgot password?` link (Firebase reset email)

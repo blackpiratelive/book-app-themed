@@ -107,6 +107,26 @@ class _AuthGatePageState extends State<AuthGatePage> {
     setState(() => _submitting = false);
   }
 
+  Future<void> _submitGoogle() async {
+    if (_submitting) return;
+    setState(() {
+      _submitting = true;
+      _errorText = null;
+    });
+    try {
+      await widget.controller.loginWithGoogle();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _errorText = e.toString();
+      });
+      return;
+    }
+    if (!mounted) return;
+    setState(() => _submitting = false);
+  }
+
   Future<void> _continueAsGuest() async {
     if (_submitting) return;
     setState(() {
@@ -301,6 +321,73 @@ class _AuthGatePageState extends State<AuthGatePage> {
                                           fontWeight: FontWeight.w700,
                                         ),
                                       ),
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                children: <Widget>[
+                                  Expanded(
+                                    child: Container(
+                                      height: 1,
+                                      color: CupertinoColors.separator
+                                          .resolveFrom(context)
+                                          .withValues(alpha: 0.35),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                    ),
+                                    child: Text(
+                                      'or',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: secondary,
+                                      ),
+                                    ),
+                                  ),
+                                  Expanded(
+                                    child: Container(
+                                      height: 1,
+                                      color: CupertinoColors.separator
+                                          .resolveFrom(context)
+                                          .withValues(alpha: 0.35),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              CupertinoButton(
+                                onPressed: _submitting ? null : _submitGoogle,
+                                color: CupertinoColors.systemBackground
+                                    .resolveFrom(context),
+                                borderRadius: BorderRadius.circular(12),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                  horizontal: 12,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: <Widget>[
+                                    Icon(
+                                      CupertinoIcons.globe,
+                                      size: 18,
+                                      color: CupertinoColors.label.resolveFrom(
+                                        context,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      _submitting
+                                          ? 'Please wait...'
+                                          : 'Continue with Google',
+                                      style: TextStyle(
+                                        color: CupertinoColors.label
+                                            .resolveFrom(context),
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),

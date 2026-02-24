@@ -270,6 +270,11 @@ class AppController extends ChangeNotifier {
     await _completeAccountAuthFromFirebase(session);
   }
 
+  Future<void> loginWithGoogle() async {
+    final session = await _firebaseAuth.signInWithGoogle();
+    await _completeAccountAuthFromFirebase(session);
+  }
+
   Future<void> sendPasswordResetEmail(String email) {
     return _firebaseAuth.sendPasswordResetEmail(email: email);
   }

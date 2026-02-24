@@ -16,7 +16,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   static const String _defaultApiUrl = AppController.defaultBackendApiUrl;
-  static const String _appVersionLabel = '0.1.4+5';
+  static const String _appVersionLabel = '0.1.5+6';
 
   late final TextEditingController _apiController;
   late String _password;

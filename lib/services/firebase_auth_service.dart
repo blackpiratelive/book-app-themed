@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AppFirebaseAuthException implements Exception {
   const AppFirebaseAuthException(this.message);
@@ -42,6 +43,39 @@ class FirebaseAuthService {
       final user = credential.user;
       if (user == null) {
         throw const AppFirebaseAuthException('Sign-in failed. Try again.');
+      }
+      return _sessionFromUser(user, forceRefresh: true);
+    } on FirebaseAuthException catch (e) {
+      throw AppFirebaseAuthException(_messageForFirebaseAuthError(e));
+    }
+  }
+
+  Future<FirebaseAuthSession> signInWithGoogle() async {
+    final auth = await _auth();
+    try {
+      final googleUser = await GoogleSignIn(
+        scopes: const <String>['email'],
+      ).signIn();
+      if (googleUser == null) {
+        throw const AppFirebaseAuthException('Google sign-in was cancelled.');
+      }
+      final googleAuth = await googleUser.authentication;
+      final idToken = googleAuth.idToken?.trim() ?? '';
+      if (idToken.isEmpty) {
+        throw const AppFirebaseAuthException(
+          'Google sign-in did not return an ID token.',
+        );
+      }
+      final credential = GoogleAuthProvider.credential(
+        idToken: idToken,
+        accessToken: googleAuth.accessToken,
+      );
+      final result = await auth.signInWithCredential(credential);
+      final user = result.user;
+      if (user == null) {
+        throw const AppFirebaseAuthException(
+          'Google sign-in failed. Try again.',
+        );
       }
       return _sessionFromUser(user, forceRefresh: true);
     } on FirebaseAuthException catch (e) {
@@ -94,6 +128,11 @@ class FirebaseAuthService {
 
   Future<void> signOut() async {
     final auth = await _auth();
+    try {
+      await GoogleSignIn().signOut();
+    } catch (_) {
+      // Firebase sign-out below still clears app auth state.
+    }
     await auth.signOut();
   }
 
