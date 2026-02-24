@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class LocalBackupExportPayload {
   const LocalBackupExportPayload({
@@ -68,19 +69,25 @@ class LocalBackupService {
 
     final fileName =
         'book_tracker_backup_${DateTime.now().toIso8601String().replaceAll(':', '-').replaceAll('.', '-')}.zip';
-    final savePath = await FilePicker.platform.saveFile(
-      dialogTitle: 'Export Local Backup',
-      fileName: fileName,
-      type: FileType.custom,
-      allowedExtensions: const <String>['zip'],
-    );
-    if (savePath == null || savePath.trim().isEmpty) {
-      throw const LocalBackupException('Backup export cancelled.');
+    final docsDir = await getApplicationDocumentsDirectory();
+    final exportDir = Directory('${docsDir.path}/exports');
+    if (!await exportDir.exists()) {
+      await exportDir.create(recursive: true);
     }
-
-    final output = File(savePath);
+    final output = File('${exportDir.path}/$fileName');
     await output.parent.create(recursive: true);
     await output.writeAsBytes(Uint8List.fromList(zipBytes), flush: true);
+
+    try {
+      await Share.shareXFiles(
+        <XFile>[XFile(output.path, mimeType: 'application/zip')],
+        text: 'Book tracker local backup export',
+        subject: 'Book tracker backup',
+      );
+    } catch (_) {
+      // Keep export successful even if the share sheet fails to open.
+    }
+
     return output.path;
   }
 

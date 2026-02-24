@@ -251,7 +251,7 @@ Features:
   - Backend cache / local changes / last sync status rows
   - Confirmation dialog before force reload if local changes exist
 - Local Data (Guest Mode) section
-  - Export local backup to zip
+  - Export local backup to zip (written to app storage, then opens OS share sheet on mobile)
   - Import local backup from zip (replaces local data)
   - Backup includes books, local settings/session UI state, backend config, and local cover image files
 
@@ -286,6 +286,7 @@ Implemented in:
 
 Behavior:
 - Export creates a zip backup containing a manifest snapshot of local app data and bundled local cover image files
+- Export writes the zip to app documents storage (`exports/`) and then attempts to open the mobile OS share sheet (instead of relying on a save-file picker)
 - Import restores local app data and extracts local cover files, rewriting book cover file paths to the current device app storage directory
 - Intended primarily for guest/local mode portability and device migration
 
