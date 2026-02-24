@@ -312,6 +312,7 @@ Behavior:
 ## Agent Workflow Expectation
 
 - When making meaningful product/code changes, update `docs/AI_AGENT_HANDOFF.md` in the same change set so future agents inherit current behavior and architecture.
+- When shipping changes intended for users, bump the app version in `pubspec.yaml` (`version:`) in the same change set.
 
 Features:
 - Toggle from settings page
