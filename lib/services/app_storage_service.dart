@@ -7,6 +7,7 @@ class AppStorageSnapshot {
   const AppStorageSnapshot({
     required this.books,
     required this.isDarkMode,
+    required this.themeMode,
     required this.hasSeenOnboarding,
     required this.authMode,
     required this.authDisplayName,
@@ -20,6 +21,7 @@ class AppStorageSnapshot {
 
   final List<BookItem> books;
   final bool isDarkMode;
+  final String themeMode;
   final bool hasSeenOnboarding;
   final String authMode;
   final String authDisplayName;
@@ -35,6 +37,7 @@ class AppStorageService {
   static const String _booksKey = 'book_items_v2';
   static const String _legacyBooksKey = 'book_items_v1';
   static const String _darkModeKey = 'dark_mode_enabled_v1';
+  static const String _themeModeKey = 'theme_mode_v1';
   static const String _hasSeenOnboardingKey = 'has_seen_onboarding_v1';
   static const String _authModeKey = 'auth_mode_v1';
   static const String _authDisplayNameKey = 'auth_display_name_v1';
@@ -54,6 +57,7 @@ class AppStorageService {
     return AppStorageSnapshot(
       books: books,
       isDarkMode: isDarkMode,
+      themeMode: (prefs.getString(_themeModeKey) ?? '').trim(),
       hasSeenOnboarding: prefs.getBool(_hasSeenOnboardingKey) ?? false,
       authMode: (prefs.getString(_authModeKey) ?? '').trim(),
       authDisplayName: (prefs.getString(_authDisplayNameKey) ?? '').trim(),
@@ -81,6 +85,7 @@ class AppStorageService {
     );
     await prefs.setString(_booksKey, booksPayload);
     await prefs.setBool(_darkModeKey, snapshot.isDarkMode);
+    await prefs.setString(_themeModeKey, snapshot.themeMode.trim());
     await prefs.setBool(_hasSeenOnboardingKey, snapshot.hasSeenOnboarding);
     await prefs.setString(_authModeKey, snapshot.authMode.trim());
     await prefs.setString(_authDisplayNameKey, snapshot.authDisplayName.trim());
@@ -104,6 +109,7 @@ class AppStorageService {
     return <String, dynamic>{
       'books': snapshot.books.map((b) => b.toJson()).toList(growable: false),
       'isDarkMode': snapshot.isDarkMode,
+      'themeMode': snapshot.themeMode,
       'hasSeenOnboarding': snapshot.hasSeenOnboarding,
       'authMode': snapshot.authMode,
       'authDisplayName': snapshot.authDisplayName,
@@ -127,6 +133,7 @@ class AppStorageService {
     return AppStorageSnapshot(
       books: books,
       isDarkMode: json['isDarkMode'] as bool? ?? false,
+      themeMode: (json['themeMode'] as String? ?? '').trim(),
       hasSeenOnboarding: json['hasSeenOnboarding'] as bool? ?? false,
       authMode: (json['authMode'] as String? ?? '').trim(),
       authDisplayName: (json['authDisplayName'] as String? ?? '').trim(),
@@ -142,6 +149,11 @@ class AppStorageService {
   Future<void> saveDarkMode(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_darkModeKey, value);
+  }
+
+  Future<void> saveThemeMode(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_themeModeKey, value.trim());
   }
 
   Future<void> saveHasSeenOnboarding(bool value) async {

@@ -97,6 +97,15 @@ class FirebaseAuthService {
     await auth.signOut();
   }
 
+  Future<void> sendPasswordResetEmail({required String email}) async {
+    final auth = await _auth();
+    try {
+      await auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (e) {
+      throw AppFirebaseAuthException(_messageForFirebaseAuthError(e));
+    }
+  }
+
   Future<FirebaseAuth> _auth() async {
     await _ensureInitialized();
     return FirebaseAuth.instance;
@@ -154,6 +163,8 @@ String _messageForFirebaseAuthError(FirebaseAuthException error) {
       return 'Email/password sign-in is not enabled in Firebase.';
     case 'requires-recent-login':
       return 'Please sign in again and retry.';
+    case 'missing-email':
+      return 'Enter your email address first.';
     default:
       return error.message ?? 'Authentication failed.';
   }

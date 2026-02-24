@@ -284,6 +284,7 @@ Behavior:
 - Signup/login use Firebase Auth and then call backend `GET /api/v1/me` to bootstrap account session
 - Signup sends a Firebase email verification email for unverified users
 - Hidden guest mode trigger: long-press the app icon on the auth gate (visible guest button removed)
+- Auth gate UI copy was simplified (technical backend text removed); login mode now includes a `Forgot password?` link (Firebase reset email)
 - Selected auth session is persisted locally so the auth gate is skipped on later launches until logout
 - Existing onboarding still appears after auth if it has not been completed yet
 - Logged-in mode stores the Firebase ID token in the existing backend credential field for compatibility, and refreshes token from Firebase before v1 API calls when possible
@@ -330,7 +331,8 @@ Behavior:
 - Guest mode legacy write push helpers are disabled (local edits stay local unless user uses explicit backend actions)
 - Direct-source search results now provide three add buttons: `Read`, `Reading`, and `Watchlist`
 - Settings hides advanced backend controls by default; tapping app version 3 times reveals/hides them
-- Theme now follows device light/dark mode automatically (no manual dark-mode switch in settings)
+- Theme supports `Auto` (follow device) plus manual `Light`/`Dark` override in settings
+- Settings now supports theme mode override (`Auto`, `Light`, `Dark`) while `Auto` follows device brightness
 
 ## Agent Workflow Expectation
 

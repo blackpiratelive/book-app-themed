@@ -16,7 +16,7 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   static const String _defaultApiUrl = AppController.defaultBackendApiUrl;
-  static const String _appVersionLabel = '0.1.3+4';
+  static const String _appVersionLabel = '0.1.4+5';
 
   late final TextEditingController _apiController;
   late String _password;
@@ -390,50 +390,85 @@ class _SettingsPageState extends State<SettingsPage> {
                 const SizedBox(height: 12),
                 SectionCard(
                   title: 'Appearance',
-                  child: Row(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: <Widget>[
-                      Container(
-                        width: 34,
-                        height: 34,
-                        decoration: BoxDecoration(
-                          color: CupertinoColors.tertiarySystemFill.resolveFrom(
-                            context,
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.tertiarySystemFill
+                                  .resolveFrom(context),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            alignment: Alignment.center,
+                            child: const Icon(
+                              CupertinoIcons.moon_stars_fill,
+                              size: 18,
+                            ),
                           ),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Icon(
-                          CupertinoIcons.moon_stars_fill,
-                          size: 18,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              'Theme follows device',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                color: CupertinoColors.label.resolveFrom(
-                                  context,
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: <Widget>[
+                                Text(
+                                  'Theme',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w600,
+                                    color: CupertinoColors.label.resolveFrom(
+                                      context,
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Auto follows your device. You can also force Light or Dark.',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: CupertinoColors.secondaryLabel
+                                        .resolveFrom(context),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'The app now respects your phone system light/dark mode automatically.',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: CupertinoColors.secondaryLabel
-                                    .resolveFrom(context),
-                              ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      CupertinoSlidingSegmentedControl<AppThemeMode>(
+                        groupValue: widget.controller.themeMode,
+                        children: const <AppThemeMode, Widget>{
+                          AppThemeMode.system: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
                             ),
-                          ],
-                        ),
+                            child: Text('Auto'),
+                          ),
+                          AppThemeMode.light: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+                            child: Text('Light'),
+                          ),
+                          AppThemeMode.dark: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
+                            ),
+                            child: Text('Dark'),
+                          ),
+                        },
+                        onValueChanged: (value) {
+                          if (value == null) return;
+                          widget.controller.setThemeMode(value);
+                        },
                       ),
                     ],
                   ),

@@ -34,6 +34,34 @@ enum AppAuthSessionType {
   }
 }
 
+enum AppThemeMode {
+  system,
+  light,
+  dark;
+
+  String get storageValue => switch (this) {
+    AppThemeMode.system => 'system',
+    AppThemeMode.light => 'light',
+    AppThemeMode.dark => 'dark',
+  };
+
+  static AppThemeMode fromStorageValue(
+    String raw, {
+    required bool legacyDarkMode,
+  }) {
+    switch (raw.trim().toLowerCase()) {
+      case 'light':
+        return AppThemeMode.light;
+      case 'dark':
+        return AppThemeMode.dark;
+      case 'system':
+        return AppThemeMode.system;
+      default:
+        return legacyDarkMode ? AppThemeMode.dark : AppThemeMode.system;
+    }
+  }
+}
+
 class BackendReloadResult {
   const BackendReloadResult({required this.bookCount, required this.message});
 
@@ -69,6 +97,7 @@ class AppController extends ChangeNotifier {
 
   final List<BookItem> _books = <BookItem>[];
   bool _isDarkMode = false;
+  AppThemeMode _themeMode = AppThemeMode.system;
   bool _isLoading = true;
   bool _hasSeenOnboarding = false;
   AppAuthSessionType _authSessionType = AppAuthSessionType.none;
@@ -86,6 +115,7 @@ class AppController extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   bool get isDarkMode => _isDarkMode;
+  AppThemeMode get themeMode => _themeMode;
   bool get hasSeenOnboarding => _hasSeenOnboarding;
   AppAuthSessionType get authSessionType => _authSessionType;
   bool get isLoggedIn => _authSessionType == AppAuthSessionType.account;
@@ -124,8 +154,15 @@ class AppController extends ChangeNotifier {
       .where((book) => book.status == _selectedShelf)
       .toList(growable: false);
 
-  CupertinoThemeData get themeData =>
-      const CupertinoThemeData(primaryColor: CupertinoColors.activeBlue);
+  CupertinoThemeData themeDataFor(Brightness systemBrightness) =>
+      CupertinoThemeData(
+        brightness: switch (_themeMode) {
+          AppThemeMode.system => systemBrightness,
+          AppThemeMode.light => Brightness.light,
+          AppThemeMode.dark => Brightness.dark,
+        },
+        primaryColor: CupertinoColors.activeBlue,
+      );
 
   Future<void> initialize() async {
     final snapshot = await _storage.load();
@@ -133,6 +170,10 @@ class AppController extends ChangeNotifier {
       ..clear()
       ..addAll(snapshot.books);
     _isDarkMode = snapshot.isDarkMode;
+    _themeMode = AppThemeMode.fromStorageValue(
+      snapshot.themeMode,
+      legacyDarkMode: snapshot.isDarkMode,
+    );
     _hasSeenOnboarding = snapshot.hasSeenOnboarding;
     _authSessionType = AppAuthSessionType.fromStorageValue(snapshot.authMode);
     _authDisplayName = snapshot.authDisplayName;
@@ -179,6 +220,15 @@ class AppController extends ChangeNotifier {
     await _storage.saveDarkMode(enabled);
   }
 
+  Future<void> setThemeMode(AppThemeMode mode) async {
+    if (_themeMode == mode) return;
+    _themeMode = mode;
+    _isDarkMode = mode == AppThemeMode.dark;
+    notifyListeners();
+    await _storage.saveThemeMode(mode.storageValue);
+    await _storage.saveDarkMode(_isDarkMode);
+  }
+
   Future<void> markOnboardingSeen() async {
     if (_hasSeenOnboarding) return;
     _hasSeenOnboarding = true;
@@ -218,6 +268,10 @@ class AppController extends ChangeNotifier {
       password: password,
     );
     await _completeAccountAuthFromFirebase(session);
+  }
+
+  Future<void> sendPasswordResetEmail(String email) {
+    return _firebaseAuth.sendPasswordResetEmail(email: email);
   }
 
   Future<void> signUpWithEmailPassword({
@@ -941,6 +995,7 @@ class AppController extends ChangeNotifier {
     return AppStorageSnapshot(
       books: List<BookItem>.unmodifiable(_books),
       isDarkMode: _isDarkMode,
+      themeMode: _themeMode.storageValue,
       hasSeenOnboarding: _hasSeenOnboarding,
       authMode: _authSessionType.storageValue,
       authDisplayName: _authDisplayName,
@@ -958,6 +1013,10 @@ class AppController extends ChangeNotifier {
       ..clear()
       ..addAll(snapshot.books);
     _isDarkMode = snapshot.isDarkMode;
+    _themeMode = AppThemeMode.fromStorageValue(
+      snapshot.themeMode,
+      legacyDarkMode: snapshot.isDarkMode,
+    );
     _hasSeenOnboarding = snapshot.hasSeenOnboarding;
     _authSessionType = AppAuthSessionType.fromStorageValue(snapshot.authMode);
     _authDisplayName = snapshot.authDisplayName;

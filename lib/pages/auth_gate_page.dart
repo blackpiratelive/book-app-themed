@@ -31,6 +31,32 @@ class _AuthGatePageState extends State<AuthGatePage> {
 
   bool get _isSignup => _mode == _AuthFormMode.signup;
 
+  Future<void> _sendPasswordReset() async {
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      setState(() => _errorText = 'Enter your email first to reset password.');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _errorText = null;
+    });
+    try {
+      await widget.controller.sendPasswordResetEmail(email);
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _errorText = 'Password reset email sent to $email.';
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _submitting = false;
+        _errorText = e.toString();
+      });
+    }
+  }
+
   Future<void> _submit() async {
     if (_submitting) return;
     final name = _nameController.text.trim();
@@ -162,7 +188,7 @@ class _AuthGatePageState extends State<AuthGatePage> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Sign up or log in to sync later. You can also continue as a guest.',
+                        'Sign up or log in to sync your books.',
                         textAlign: TextAlign.center,
                         style: TextStyle(fontSize: 14, color: secondary),
                       ),
@@ -232,6 +258,20 @@ class _AuthGatePageState extends State<AuthGatePage> {
                                 autocorrect: false,
                                 onSubmitted: (_) => _submit(),
                               ),
+                              if (!_isSignup) ...<Widget>[
+                                const SizedBox(height: 8),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: CupertinoButton(
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: Size.zero,
+                                    onPressed: _submitting
+                                        ? null
+                                        : _sendPasswordReset,
+                                    child: const Text('Forgot password?'),
+                                  ),
+                                ),
+                              ],
                               if (_errorText != null) ...<Widget>[
                                 const SizedBox(height: 10),
                                 Text(
@@ -261,15 +301,6 @@ class _AuthGatePageState extends State<AuthGatePage> {
                                           fontWeight: FontWeight.w700,
                                         ),
                                       ),
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                'Uses Firebase email/password auth, then boots your account session with the v1 backend. Hidden guest mode: long-press the app icon.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: secondary,
-                                ),
                               ),
                             ],
                           ),
