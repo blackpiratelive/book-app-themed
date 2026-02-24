@@ -1,3 +1,4 @@
+import 'package:book_app_themed/pages/auth_gate_page.dart';
 import 'package:book_app_themed/pages/first_run_intro_page.dart';
 import 'package:book_app_themed/pages/home_page.dart';
 import 'package:book_app_themed/state/app_controller.dart';
@@ -14,10 +15,15 @@ class BookTrackerApp extends StatelessWidget {
       animation: controller,
       builder: (context, _) {
         return CupertinoApp(
+          key: ValueKey<String>(
+            'session:${controller.authSessionType.storageValue}|onboarding:${controller.hasSeenOnboarding}',
+          ),
           debugShowCheckedModeBanner: false,
           title: 'BlackPirateX Book tracker',
           theme: controller.themeData,
-          home: controller.shouldShowOnboarding
+          home: controller.shouldShowAuthGate
+              ? AuthGatePage(controller: controller)
+              : controller.shouldShowOnboarding
               ? FirstRunIntroPage(controller: controller)
               : HomePage(controller: controller),
         );

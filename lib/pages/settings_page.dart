@@ -109,7 +109,8 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!mounted) return;
       setState(() {
         _localStatusMessage =
-            widget.controller.lastBackendStatusMessage ?? 'Connection test failed.';
+            widget.controller.lastBackendStatusMessage ??
+            'Connection test failed.';
       });
     }
   }
@@ -119,7 +120,8 @@ class _SettingsPageState extends State<SettingsPage> {
     if (!mounted) return;
 
     if (widget.controller.hasLocalBookChanges) {
-      final confirmed = await showCupertinoDialog<bool>(
+      final confirmed =
+          await showCupertinoDialog<bool>(
             context: context,
             builder: (context) => CupertinoAlertDialog(
               title: const Text('Force reload from backend?'),
@@ -152,9 +154,37 @@ class _SettingsPageState extends State<SettingsPage> {
       if (!mounted) return;
       setState(() {
         _localStatusMessage =
-            widget.controller.lastBackendStatusMessage ?? 'Backend refresh failed.';
+            widget.controller.lastBackendStatusMessage ??
+            'Backend refresh failed.';
       });
     }
+  }
+
+  Future<void> _logout() async {
+    final confirmed =
+        await showCupertinoDialog<bool>(
+          context: context,
+          builder: (context) => CupertinoAlertDialog(
+            title: const Text('Log out?'),
+            content: const Text(
+              'This signs you out on this device. Backend authentication will be added later.',
+            ),
+            actions: <Widget>[
+              CupertinoDialogAction(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              CupertinoDialogAction(
+                isDestructiveAction: true,
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Log Out'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+    await widget.controller.logout();
   }
 
   @override
@@ -163,17 +193,70 @@ class _SettingsPageState extends State<SettingsPage> {
       animation: widget.controller,
       builder: (context, _) {
         final busy = widget.controller.isBackendBusy;
-        final backendStatus = _localStatusMessage ?? widget.controller.lastBackendStatusMessage;
-        final syncLabel = _formatSyncLabel(widget.controller.lastBackendSyncAtIso);
+        final backendStatus =
+            _localStatusMessage ?? widget.controller.lastBackendStatusMessage;
+        final syncLabel = _formatSyncLabel(
+          widget.controller.lastBackendSyncAtIso,
+        );
 
         return CupertinoPageScaffold(
-          navigationBar: const CupertinoNavigationBar(
-            middle: Text('Settings'),
-          ),
+          navigationBar: const CupertinoNavigationBar(middle: Text('Settings')),
           child: SafeArea(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               children: <Widget>[
+                SectionCard(
+                  title: 'Account',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      _BackendInfoRow(
+                        label: 'Status',
+                        value: widget.controller.authStatusLabel,
+                        isLast:
+                            !(widget.controller.isLoggedIn ||
+                                widget.controller.isGuestSession),
+                      ),
+                      if (widget.controller.isLoggedIn ||
+                          widget.controller.isGuestSession)
+                        _BackendInfoRow(
+                          label: 'Name',
+                          value: widget.controller.authDisplayName.isEmpty
+                              ? (widget.controller.isGuestSession
+                                    ? 'Guest'
+                                    : 'Reader')
+                              : widget.controller.authDisplayName,
+                          isLast: widget.controller.authEmail.trim().isEmpty,
+                        ),
+                      if (widget.controller.authEmail.trim().isNotEmpty)
+                        _BackendInfoRow(
+                          label: 'Email',
+                          value: widget.controller.authEmail,
+                          isLast: !widget.controller.isLoggedIn,
+                        ),
+                      if (widget.controller.isLoggedIn) ...<Widget>[
+                        const SizedBox(height: 10),
+                        CupertinoButton(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
+                          color: CupertinoColors.systemRed.resolveFrom(context),
+                          borderRadius: BorderRadius.circular(12),
+                          onPressed: _logout,
+                          child: const Text(
+                            'Log Out',
+                            style: TextStyle(
+                              color: CupertinoColors.white,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
                 SectionCard(
                   title: 'Appearance',
                   child: Row(
@@ -183,7 +266,9 @@ class _SettingsPageState extends State<SettingsPage> {
                         width: 34,
                         height: 34,
                         decoration: BoxDecoration(
-                          color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+                          color: CupertinoColors.tertiarySystemFill.resolveFrom(
+                            context,
+                          ),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         alignment: Alignment.center,
@@ -199,7 +284,9 @@ class _SettingsPageState extends State<SettingsPage> {
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
-                                color: CupertinoColors.label.resolveFrom(context),
+                                color: CupertinoColors.label.resolveFrom(
+                                  context,
+                                ),
                               ),
                             ),
                             const SizedBox(height: 2),
@@ -207,7 +294,8 @@ class _SettingsPageState extends State<SettingsPage> {
                               'Use a darker interface across the app.',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                                color: CupertinoColors.secondaryLabel
+                                    .resolveFrom(context),
                               ),
                             ),
                           ],
@@ -231,13 +319,18 @@ class _SettingsPageState extends State<SettingsPage> {
                         style: TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
-                          color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                          color: CupertinoColors.secondaryLabel.resolveFrom(
+                            context,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 6),
                       CupertinoTextField(
                         controller: _apiController,
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 12,
+                        ),
                         keyboardType: TextInputType.url,
                         autocorrect: false,
                         onEditingComplete: () {
@@ -246,7 +339,9 @@ class _SettingsPageState extends State<SettingsPage> {
                         },
                         onSubmitted: (_) => unawaited(_persistBackendConfig()),
                         decoration: BoxDecoration(
-                          color: CupertinoColors.systemBackground.resolveFrom(context),
+                          color: CupertinoColors.systemBackground.resolveFrom(
+                            context,
+                          ),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
                             color: CupertinoColors.separator
@@ -262,9 +357,13 @@ class _SettingsPageState extends State<SettingsPage> {
                         onPressed: busy ? null : _openPasswordDialog,
                         child: Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
                           decoration: BoxDecoration(
-                            color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+                            color: CupertinoColors.tertiarySystemFill
+                                .resolveFrom(context),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: CupertinoColors.separator
@@ -281,7 +380,9 @@ class _SettingsPageState extends State<SettingsPage> {
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
-                                  color: CupertinoColors.label.resolveFrom(context),
+                                  color: CupertinoColors.label.resolveFrom(
+                                    context,
+                                  ),
                                 ),
                               ),
                               const Spacer(),
@@ -289,14 +390,16 @@ class _SettingsPageState extends State<SettingsPage> {
                                 _password.trim().isEmpty ? 'Not set' : 'Saved',
                                 style: TextStyle(
                                   fontSize: 13,
-                                  color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                                  color: CupertinoColors.secondaryLabel
+                                      .resolveFrom(context),
                                 ),
                               ),
                               const SizedBox(width: 6),
                               Icon(
                                 CupertinoIcons.chevron_forward,
                                 size: 16,
-                                color: CupertinoColors.secondaryLabel.resolveFrom(context),
+                                color: CupertinoColors.secondaryLabel
+                                    .resolveFrom(context),
                               ),
                             ],
                           ),
@@ -307,7 +410,10 @@ class _SettingsPageState extends State<SettingsPage> {
                         children: <Widget>[
                           Expanded(
                             child: CupertinoButton(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
                               color: CupertinoColors.activeBlue,
                               borderRadius: BorderRadius.circular(12),
                               onPressed: busy ? null : _testConnection,
@@ -329,15 +435,21 @@ class _SettingsPageState extends State<SettingsPage> {
                         children: <Widget>[
                           Expanded(
                             child: CupertinoButton(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                              color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 10,
+                              ),
+                              color: CupertinoColors.tertiarySystemFill
+                                  .resolveFrom(context),
                               borderRadius: BorderRadius.circular(12),
                               onPressed: busy ? null : _forceReload,
                               child: Text(
                                 'Force Reload From API',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  color: CupertinoColors.label.resolveFrom(context),
+                                  color: CupertinoColors.label.resolveFrom(
+                                    context,
+                                  ),
                                 ),
                               ),
                             ),
@@ -353,7 +465,9 @@ class _SettingsPageState extends State<SettingsPage> {
                       ),
                       _BackendInfoRow(
                         label: 'Local changes',
-                        value: widget.controller.hasLocalBookChanges ? 'Yes (auto refresh paused)' : 'No',
+                        value: widget.controller.hasLocalBookChanges
+                            ? 'Yes (auto refresh paused)'
+                            : 'No',
                       ),
                       _BackendInfoRow(
                         label: 'Last backend sync',
@@ -364,9 +478,14 @@ class _SettingsPageState extends State<SettingsPage> {
                         const SizedBox(height: 10),
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 10,
+                          ),
                           decoration: BoxDecoration(
-                            color: CupertinoColors.systemGrey6.resolveFrom(context),
+                            color: CupertinoColors.systemGrey6.resolveFrom(
+                              context,
+                            ),
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(

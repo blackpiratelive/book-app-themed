@@ -8,6 +8,9 @@ class AppStorageSnapshot {
     required this.books,
     required this.isDarkMode,
     required this.hasSeenOnboarding,
+    required this.authMode,
+    required this.authDisplayName,
+    required this.authEmail,
     required this.backendApiUrl,
     required this.backendPassword,
     required this.backendCachePrimed,
@@ -18,6 +21,9 @@ class AppStorageSnapshot {
   final List<BookItem> books;
   final bool isDarkMode;
   final bool hasSeenOnboarding;
+  final String authMode;
+  final String authDisplayName;
+  final String authEmail;
   final String backendApiUrl;
   final String backendPassword;
   final bool backendCachePrimed;
@@ -30,6 +36,9 @@ class AppStorageService {
   static const String _legacyBooksKey = 'book_items_v1';
   static const String _darkModeKey = 'dark_mode_enabled_v1';
   static const String _hasSeenOnboardingKey = 'has_seen_onboarding_v1';
+  static const String _authModeKey = 'auth_mode_v1';
+  static const String _authDisplayNameKey = 'auth_display_name_v1';
+  static const String _authEmailKey = 'auth_email_v1';
   static const String _backendApiUrlKey = 'backend_api_url_v1';
   static const String _backendPasswordKey = 'backend_password_v1';
   static const String _backendCachePrimedKey = 'backend_cache_primed_v1';
@@ -46,6 +55,9 @@ class AppStorageService {
       books: books,
       isDarkMode: isDarkMode,
       hasSeenOnboarding: prefs.getBool(_hasSeenOnboardingKey) ?? false,
+      authMode: (prefs.getString(_authModeKey) ?? '').trim(),
+      authDisplayName: (prefs.getString(_authDisplayNameKey) ?? '').trim(),
+      authEmail: (prefs.getString(_authEmailKey) ?? '').trim(),
       backendApiUrl: (prefs.getString(_backendApiUrlKey) ?? '').trim(),
       backendPassword: prefs.getString(_backendPasswordKey) ?? '',
       backendCachePrimed: prefs.getBool(_backendCachePrimedKey) ?? false,
@@ -70,6 +82,17 @@ class AppStorageService {
   Future<void> saveHasSeenOnboarding(bool value) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_hasSeenOnboardingKey, value);
+  }
+
+  Future<void> saveAuthState({
+    required String mode,
+    required String displayName,
+    required String email,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_authModeKey, mode.trim());
+    await prefs.setString(_authDisplayNameKey, displayName.trim());
+    await prefs.setString(_authEmailKey, email.trim());
   }
 
   Future<void> saveBackendConfig({

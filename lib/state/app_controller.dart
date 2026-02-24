@@ -6,6 +6,29 @@ import 'package:book_app_themed/services/backend_api_service.dart';
 import 'package:book_app_themed/services/app_storage_service.dart';
 import 'package:flutter/cupertino.dart';
 
+enum AppAuthSessionType {
+  none,
+  guest,
+  account;
+
+  String get storageValue => switch (this) {
+    AppAuthSessionType.none => 'none',
+    AppAuthSessionType.guest => 'guest',
+    AppAuthSessionType.account => 'account',
+  };
+
+  static AppAuthSessionType fromStorageValue(String raw) {
+    switch (raw.trim().toLowerCase()) {
+      case 'guest':
+        return AppAuthSessionType.guest;
+      case 'account':
+        return AppAuthSessionType.account;
+      default:
+        return AppAuthSessionType.none;
+    }
+  }
+}
+
 class BackendReloadResult {
   const BackendReloadResult({required this.bookCount, required this.message});
 
@@ -29,6 +52,9 @@ class AppController extends ChangeNotifier {
   bool _isDarkMode = false;
   bool _isLoading = true;
   bool _hasSeenOnboarding = false;
+  AppAuthSessionType _authSessionType = AppAuthSessionType.none;
+  String _authDisplayName = '';
+  String _authEmail = '';
   BookStatus _selectedShelf = BookStatus.reading;
   String _backendApiUrl = '';
   String _backendPassword = '';
@@ -41,6 +67,18 @@ class AppController extends ChangeNotifier {
   bool get isLoading => _isLoading;
   bool get isDarkMode => _isDarkMode;
   bool get hasSeenOnboarding => _hasSeenOnboarding;
+  AppAuthSessionType get authSessionType => _authSessionType;
+  bool get isLoggedIn => _authSessionType == AppAuthSessionType.account;
+  bool get isGuestSession => _authSessionType == AppAuthSessionType.guest;
+  bool get hasAuthSession => _authSessionType != AppAuthSessionType.none;
+  bool get shouldShowAuthGate => !_isLoading && !hasAuthSession;
+  String get authDisplayName => _authDisplayName;
+  String get authEmail => _authEmail;
+  String get authStatusLabel => switch (_authSessionType) {
+    AppAuthSessionType.none => 'Signed out',
+    AppAuthSessionType.guest => 'Guest',
+    AppAuthSessionType.account => 'Logged in',
+  };
   bool get shouldShowOnboarding => !_isLoading && !_hasSeenOnboarding;
   BookStatus get selectedShelf => _selectedShelf;
   List<BookItem> get books => List<BookItem>.unmodifiable(_books);
@@ -69,6 +107,9 @@ class AppController extends ChangeNotifier {
       ..addAll(snapshot.books);
     _isDarkMode = snapshot.isDarkMode;
     _hasSeenOnboarding = snapshot.hasSeenOnboarding;
+    _authSessionType = AppAuthSessionType.fromStorageValue(snapshot.authMode);
+    _authDisplayName = snapshot.authDisplayName;
+    _authEmail = snapshot.authEmail;
     _backendApiUrl = snapshot.backendApiUrl.trim().isEmpty
         ? defaultBackendApiUrl
         : snapshot.backendApiUrl;
@@ -115,6 +156,33 @@ class AppController extends ChangeNotifier {
     _hasSeenOnboarding = true;
     notifyListeners();
     await _storage.saveHasSeenOnboarding(true);
+  }
+
+  Future<void> continueAsGuest() async {
+    _authSessionType = AppAuthSessionType.guest;
+    _authDisplayName = 'Guest';
+    _authEmail = '';
+    notifyListeners();
+    await _persistAuthState();
+  }
+
+  Future<void> completeFrontendAuth({
+    required String displayName,
+    required String email,
+  }) async {
+    _authSessionType = AppAuthSessionType.account;
+    _authDisplayName = displayName.trim();
+    _authEmail = email.trim();
+    notifyListeners();
+    await _persistAuthState();
+  }
+
+  Future<void> logout() async {
+    _authSessionType = AppAuthSessionType.none;
+    _authDisplayName = '';
+    _authEmail = '';
+    notifyListeners();
+    await _persistAuthState();
   }
 
   Future<void> addBook(BookDraft draft) async {
@@ -497,5 +565,13 @@ class AppController extends ChangeNotifier {
     if (a.length != b.length) return false;
     return jsonEncode(a.map((book) => book.toJson()).toList()) ==
         jsonEncode(b.map((book) => book.toJson()).toList());
+  }
+
+  Future<void> _persistAuthState() {
+    return _storage.saveAuthState(
+      mode: _authSessionType.storageValue,
+      displayName: _authDisplayName,
+      email: _authEmail,
+    );
   }
 }

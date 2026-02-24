@@ -17,7 +17,7 @@ It summarizes what is currently implemented, how the app is structured, and the 
 
 Main entry and app shell:
 - `lib/main.dart`: bootstraps app, initializes storage-backed controller
-- `lib/app.dart`: `CupertinoApp` wrapper, listens to `AppController` for theme updates and routes first-run users into onboarding
+- `lib/app.dart`: `CupertinoApp` wrapper, listens to `AppController` for theme updates and routes users through auth gate -> onboarding -> home
 
 Domain model:
 - `lib/models/book.dart`
@@ -27,11 +27,12 @@ Domain model:
   - `ReadingMedium` (`Kindle`, `Paperback`, `Mobile`, `Laptop`)
 
 State and persistence:
-- `lib/state/app_controller.dart`: app state, filtering, CRUD, dark mode, persistence orchestration
-- `lib/services/app_storage_service.dart`: `shared_preferences` load/save
+- `lib/state/app_controller.dart`: app state, filtering, CRUD, dark mode, frontend auth session UI state, persistence orchestration
+- `lib/services/app_storage_service.dart`: `shared_preferences` load/save (books, settings, backend config, onboarding, frontend auth session)
 - `lib/services/backend_api_service.dart`: backend HTTP client (`/api/public`, `/api/books`) + server-row mapping
 
 Pages:
+- `lib/pages/auth_gate_page.dart` (first-open login/signup/guest UI; frontend-only placeholder auth)
 - `lib/pages/first_run_intro_page.dart` (first-open onboarding / intro tutorial)
 - `lib/pages/home_page.dart`
 - `lib/pages/book_details_page.dart`
@@ -226,6 +227,10 @@ Implemented in `lib/pages/settings_page.dart`.
 
 Features:
 - Dark mode toggle (real setting, persisted)
+- Account section (frontend-only auth status)
+  - Shows `Logged in`, `Guest`, or `Signed out`
+  - Displays saved frontend auth name/email when present
+  - Shows `Log Out` button when logged in with an account
 - Backend section (wired)
   - Backend API URL field (persisted)
   - Password dialog / local password storage (persisted in `shared_preferences`)
@@ -237,6 +242,28 @@ Features:
 ### 11. Dark Mode
 
 Implemented via `AppController` and `shared_preferences`.
+
+### 12. Frontend Auth Gate (UI Only)
+
+Implemented in:
+- `lib/pages/auth_gate_page.dart`
+- `lib/app.dart`
+- `lib/state/app_controller.dart`
+- `lib/services/app_storage_service.dart`
+
+Behavior:
+- On first install/open, the app now shows a Cupertino auth screen before onboarding/home
+- Users can choose:
+  - `Sign Up` (UI-only local session)
+  - `Log In` (UI-only local session)
+  - `Continue as Guest`
+- No backend auth calls are made yet (placeholder frontend flow only)
+- Selected auth session is persisted locally so the auth gate is skipped on later launches until logout
+- Existing onboarding still appears after auth if it has not been completed yet
+
+## Agent Workflow Expectation
+
+- When making meaningful product/code changes, update `docs/AI_AGENT_HANDOFF.md` in the same change set so future agents inherit current behavior and architecture.
 
 Features:
 - Toggle from settings page
