@@ -55,6 +55,9 @@ Shared widgets:
 Utilities:
 - `lib/utils/date_formatters.dart`
 
+Planning / build specs:
+- `docs/API_AGENT_BACKEND_BUILD_SPEC.md` (future backend implementation spec for AI agents; Firebase Auth + Turso + full sync scope)
+
 ## Features Currently Implemented
 
 ### 1. Cupertino-Only Themed App
