@@ -21,10 +21,10 @@ class BookTrackerApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           title: 'BlackPirateX Book tracker',
           theme: controller.themeData,
-          home: controller.shouldShowAuthGate
-              ? AuthGatePage(controller: controller)
-              : controller.shouldShowOnboarding
+          home: controller.shouldShowOnboarding
               ? FirstRunIntroPage(controller: controller)
+              : controller.shouldShowAuthGate
+              ? AuthGatePage(controller: controller)
               : HomePage(controller: controller),
         );
       },

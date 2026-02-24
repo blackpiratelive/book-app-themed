@@ -277,7 +277,9 @@ class _BookEditorPageState extends State<BookEditorPage> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'Backend API docs do not expose image upload endpoints, so selected cover files are kept locally.',
+                    widget.controller.usesAccountBackend
+                        ? 'In account mode, device-selected cover images are uploaded to the backend when you save.'
+                        : 'In guest mode, selected cover files are kept locally on this device.',
                     style: TextStyle(
                       fontSize: 12,
                       color: CupertinoColors.secondaryLabel.resolveFrom(
@@ -380,6 +382,23 @@ class _BookEditorPageState extends State<BookEditorPage> {
                     max: 100,
                     divisions: 100,
                     onChanged: (value) => setState(() => _progress = value),
+                  ),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: const <int>[0, 25, 50, 75, 100]
+                        .map((value) => value)
+                        .map((value) {
+                          final selected = _progress.round() == value;
+                          return _ChoiceChipButton(
+                            icon: CupertinoIcons.gauge,
+                            label: '$value%',
+                            selected: selected,
+                            onPressed: () =>
+                                setState(() => _progress = value.toDouble()),
+                          );
+                        })
+                        .toList(growable: false),
                   ),
                   const SizedBox(height: 8),
                   Text(

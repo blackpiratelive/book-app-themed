@@ -32,6 +32,7 @@ class _AuthGatePageState extends State<AuthGatePage> {
   bool get _isSignup => _mode == _AuthFormMode.signup;
 
   Future<void> _submit() async {
+    if (_submitting) return;
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
     final password = _passwordController.text;
@@ -81,6 +82,7 @@ class _AuthGatePageState extends State<AuthGatePage> {
   }
 
   Future<void> _continueAsGuest() async {
+    if (_submitting) return;
     setState(() {
       _submitting = true;
       _errorText = null;
@@ -127,18 +129,25 @@ class _AuthGatePageState extends State<AuthGatePage> {
                     children: <Widget>[
                       const SizedBox(height: 8),
                       Center(
-                        child: Container(
-                          width: 72,
-                          height: 72,
-                          decoration: BoxDecoration(
-                            color: accent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(22),
-                            border: Border.all(
-                              color: accent.withValues(alpha: 0.2),
+                        child: GestureDetector(
+                          onLongPress: _continueAsGuest,
+                          behavior: HitTestBehavior.opaque,
+                          child: Container(
+                            width: 72,
+                            height: 72,
+                            decoration: BoxDecoration(
+                              color: accent.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(22),
+                              border: Border.all(
+                                color: accent.withValues(alpha: 0.2),
+                              ),
+                            ),
+                            alignment: Alignment.center,
+                            child: const BrandAppIcon(
+                              size: 52,
+                              borderRadius: 14,
                             ),
                           ),
-                          alignment: Alignment.center,
-                          child: const BrandAppIcon(size: 52, borderRadius: 14),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -235,8 +244,11 @@ class _AuthGatePageState extends State<AuthGatePage> {
                                 ),
                               ],
                               const SizedBox(height: 14),
-                              CupertinoButton.filled(
-                                onPressed: _submitting ? null : _submit,
+                              CupertinoButton(
+                                onPressed: _submit,
+                                color: accent.withValues(
+                                  alpha: _submitting ? 0.75 : 1,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                                 child: _submitting
                                     ? const CupertinoActivityIndicator(
@@ -244,11 +256,15 @@ class _AuthGatePageState extends State<AuthGatePage> {
                                       )
                                     : Text(
                                         _isSignup ? 'Create Account' : 'Log In',
+                                        style: const TextStyle(
+                                          color: CupertinoColors.white,
+                                          fontWeight: FontWeight.w700,
+                                        ),
                                       ),
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Uses Firebase email/password auth, then boots your account session with the v1 backend.',
+                                'Uses Firebase email/password auth, then boots your account session with the v1 backend. Hidden guest mode: long-press the app icon.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 12,
@@ -256,20 +272,6 @@ class _AuthGatePageState extends State<AuthGatePage> {
                                 ),
                               ),
                             ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-                      CupertinoButton(
-                        onPressed: _submitting ? null : _continueAsGuest,
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        borderRadius: BorderRadius.circular(14),
-                        color: card,
-                        child: Text(
-                          'Continue as Guest',
-                          style: TextStyle(
-                            color: label,
-                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),

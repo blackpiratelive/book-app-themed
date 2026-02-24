@@ -16,11 +16,14 @@ class SettingsPage extends StatefulWidget {
 
 class _SettingsPageState extends State<SettingsPage> {
   static const String _defaultApiUrl = AppController.defaultBackendApiUrl;
+  static const String _appVersionLabel = '0.1.3+4';
 
   late final TextEditingController _apiController;
   late String _password;
   String? _localStatusMessage;
   bool _isBackupBusy = false;
+  bool _showAdvancedBackend = false;
+  int _versionTapCount = 0;
 
   @override
   void initState() {
@@ -171,9 +174,7 @@ class _SettingsPageState extends State<SettingsPage> {
           context: context,
           builder: (context) => CupertinoAlertDialog(
             title: const Text('Log out?'),
-            content: const Text(
-              'This signs you out on this device. Backend authentication will be added later.',
-            ),
+            content: const Text('This signs you out on this device.'),
             actions: <Widget>[
               CupertinoDialogAction(
                 onPressed: () => Navigator.of(context).pop(false),
@@ -190,6 +191,19 @@ class _SettingsPageState extends State<SettingsPage> {
         false;
     if (!confirmed) return;
     await widget.controller.logout();
+  }
+
+  void _onVersionTap() {
+    setState(() {
+      _versionTapCount += 1;
+      if (_versionTapCount >= 3) {
+        _showAdvancedBackend = !_showAdvancedBackend;
+        _versionTapCount = 0;
+        _localStatusMessage = _showAdvancedBackend
+            ? 'Advanced backend settings revealed.'
+            : 'Advanced backend settings hidden.';
+      }
+    });
   }
 
   Future<void> _exportLocalBackup() async {
@@ -297,53 +311,9 @@ class _SettingsPageState extends State<SettingsPage> {
               children: <Widget>[
                 SectionCard(
                   title: 'Account',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      _BackendInfoRow(
-                        label: 'Status',
-                        value: widget.controller.authStatusLabel,
-                        isLast:
-                            !(widget.controller.isLoggedIn ||
-                                widget.controller.isGuestSession),
-                      ),
-                      if (widget.controller.isLoggedIn ||
-                          widget.controller.isGuestSession)
-                        _BackendInfoRow(
-                          label: 'Name',
-                          value: widget.controller.authDisplayName.isEmpty
-                              ? (widget.controller.isGuestSession
-                                    ? 'Guest'
-                                    : 'Reader')
-                              : widget.controller.authDisplayName,
-                          isLast: widget.controller.authEmail.trim().isEmpty,
-                        ),
-                      if (widget.controller.authEmail.trim().isNotEmpty)
-                        _BackendInfoRow(
-                          label: 'Email',
-                          value: widget.controller.authEmail,
-                          isLast: !widget.controller.isLoggedIn,
-                        ),
-                      if (widget.controller.isLoggedIn) ...<Widget>[
-                        const SizedBox(height: 10),
-                        CupertinoButton(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          color: CupertinoColors.systemRed.resolveFrom(context),
-                          borderRadius: BorderRadius.circular(12),
-                          onPressed: _logout,
-                          child: const Text(
-                            'Log Out',
-                            style: TextStyle(
-                              color: CupertinoColors.white,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ],
+                  child: _AccountSummaryCard(
+                    controller: widget.controller,
+                    onLogout: widget.controller.isLoggedIn ? _logout : null,
                   ),
                 ),
                 const SizedBox(height: 12),
@@ -433,7 +403,10 @@ class _SettingsPageState extends State<SettingsPage> {
                           borderRadius: BorderRadius.circular(10),
                         ),
                         alignment: Alignment.center,
-                        child: const Icon(CupertinoIcons.moon_fill, size: 18),
+                        child: const Icon(
+                          CupertinoIcons.moon_stars_fill,
+                          size: 18,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -441,7 +414,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: <Widget>[
                             Text(
-                              'Dark Mode',
+                              'Theme follows device',
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -452,7 +425,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Use a darker interface across the app.',
+                              'The app now respects your phone system light/dark mode automatically.',
                               style: TextStyle(
                                 fontSize: 13,
                                 color: CupertinoColors.secondaryLabel
@@ -462,227 +435,446 @@ class _SettingsPageState extends State<SettingsPage> {
                           ],
                         ),
                       ),
-                      CupertinoSwitch(
-                        value: widget.controller.isDarkMode,
-                        onChanged: widget.controller.setDarkMode,
-                      ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 12),
                 SectionCard(
-                  title: 'Backend',
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      Text(
-                        isAccountMode
-                            ? 'Account Backend API (Fixed)'
-                            : 'Backend API',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                          color: CupertinoColors.secondaryLabel.resolveFrom(
-                            context,
-                          ),
-                        ),
+                  title: 'About',
+                  child: CupertinoButton(
+                    padding: EdgeInsets.zero,
+                    minSize: 0,
+                    onPressed: _onVersionTap,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 12,
                       ),
-                      const SizedBox(height: 6),
-                      CupertinoTextField(
-                        controller: _apiController,
-                        readOnly: isAccountMode,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 12,
+                      decoration: BoxDecoration(
+                        color: CupertinoColors.tertiarySystemFill.resolveFrom(
+                          context,
                         ),
-                        keyboardType: TextInputType.url,
-                        autocorrect: false,
-                        placeholder: effectiveApiUrl,
-                        onEditingComplete: () {
-                          FocusScope.of(context).unfocus();
-                          unawaited(_persistBackendConfig());
-                        },
-                        onSubmitted: (_) => unawaited(_persistBackendConfig()),
-                        decoration: BoxDecoration(
-                          color: CupertinoColors.systemBackground.resolveFrom(
-                            context,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: CupertinoColors.separator
-                                .resolveFrom(context)
-                                .withValues(alpha: 0.35),
-                          ),
-                        ),
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      const SizedBox(height: 10),
-                      CupertinoButton(
-                        padding: EdgeInsets.zero,
-                        minimumSize: const Size(0, 0),
-                        onPressed: busy ? null : _openPasswordDialog,
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 12,
-                          ),
-                          decoration: BoxDecoration(
-                            color: CupertinoColors.tertiarySystemFill
-                                .resolveFrom(context),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: CupertinoColors.separator
-                                  .resolveFrom(context)
-                                  .withValues(alpha: 0.25),
+                      child: Row(
+                        children: <Widget>[
+                          Icon(
+                            CupertinoIcons.info_circle_fill,
+                            size: 18,
+                            color: CupertinoColors.activeBlue.resolveFrom(
+                              context,
                             ),
                           ),
-                          child: Row(
-                            children: <Widget>[
-                              const Icon(CupertinoIcons.lock_fill, size: 16),
-                              const SizedBox(width: 8),
-                              Text(
-                                widget.controller.backendCredentialLabel,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: CupertinoColors.label.resolveFrom(
-                                    context,
-                                  ),
-                                ),
-                              ),
-                              const Spacer(),
-                              Text(
-                                _password.trim().isEmpty ? 'Not set' : 'Saved',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: CupertinoColors.secondaryLabel
-                                      .resolveFrom(context),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Icon(
-                                CupertinoIcons.chevron_forward,
-                                size: 16,
-                                color: CupertinoColors.secondaryLabel
-                                    .resolveFrom(context),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      if (isAccountMode)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
-                          child: Text(
-                            'Logged-in mode uses the new API at ${AppController.accountBackendApiUrl}. Paste a Firebase ID token to authenticate backend sync. Legacy notes.blackpiratex.com is only used in guest mode.',
+                          const SizedBox(width: 8),
+                          Text(
+                            'Version',
                             style: TextStyle(
-                              fontSize: 12.5,
+                              fontWeight: FontWeight.w700,
+                              color: CupertinoColors.label.resolveFrom(context),
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            _appVersionLabel,
+                            style: TextStyle(
                               color: CupertinoColors.secondaryLabel.resolveFrom(
                                 context,
                               ),
                             ),
                           ),
-                        ),
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: CupertinoButton(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
-                              color: CupertinoColors.activeBlue,
-                              borderRadius: BorderRadius.circular(12),
-                              onPressed: busy ? null : _testConnection,
-                              child: busy
-                                  ? const CupertinoActivityIndicator()
-                                  : const Text(
-                                      'Test Connection',
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w700,
-                                        color: CupertinoColors.white,
-                                      ),
-                                    ),
-                            ),
-                          ),
                         ],
                       ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: <Widget>[
-                          Expanded(
-                            child: CupertinoButton(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 10,
-                              ),
+                    ),
+                  ),
+                ),
+                if (_showAdvancedBackend) ...<Widget>[
+                  const SizedBox(height: 12),
+                  SectionCard(
+                    title: 'Backend',
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          isAccountMode
+                              ? 'Account Backend API (Fixed)'
+                              : 'Backend API',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: CupertinoColors.secondaryLabel.resolveFrom(
+                              context,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        CupertinoTextField(
+                          controller: _apiController,
+                          readOnly: isAccountMode,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          keyboardType: TextInputType.url,
+                          autocorrect: false,
+                          placeholder: effectiveApiUrl,
+                          onEditingComplete: () {
+                            FocusScope.of(context).unfocus();
+                            unawaited(_persistBackendConfig());
+                          },
+                          onSubmitted: (_) =>
+                              unawaited(_persistBackendConfig()),
+                          decoration: BoxDecoration(
+                            color: CupertinoColors.systemBackground.resolveFrom(
+                              context,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: CupertinoColors.separator
+                                  .resolveFrom(context)
+                                  .withValues(alpha: 0.35),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        CupertinoButton(
+                          padding: EdgeInsets.zero,
+                          minimumSize: const Size(0, 0),
+                          onPressed: busy ? null : _openPasswordDialog,
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 12,
+                            ),
+                            decoration: BoxDecoration(
                               color: CupertinoColors.tertiarySystemFill
                                   .resolveFrom(context),
                               borderRadius: BorderRadius.circular(12),
-                              onPressed: busy ? null : _forceReload,
-                              child: Text(
-                                'Force Reload From API',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  color: CupertinoColors.label.resolveFrom(
-                                    context,
+                              border: Border.all(
+                                color: CupertinoColors.separator
+                                    .resolveFrom(context)
+                                    .withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: Row(
+                              children: <Widget>[
+                                const Icon(CupertinoIcons.lock_fill, size: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  widget.controller.backendCredentialLabel,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: CupertinoColors.label.resolveFrom(
+                                      context,
+                                    ),
                                   ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  _password.trim().isEmpty
+                                      ? 'Not set'
+                                      : 'Saved',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: CupertinoColors.secondaryLabel
+                                        .resolveFrom(context),
+                                  ),
+                                ),
+                                const SizedBox(width: 6),
+                                Icon(
+                                  CupertinoIcons.chevron_forward,
+                                  size: 16,
+                                  color: CupertinoColors.secondaryLabel
+                                      .resolveFrom(context),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        if (isAccountMode)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 10),
+                            child: Text(
+                              'Logged-in mode uses the new API at ${AppController.accountBackendApiUrl}. Paste a Firebase ID token to authenticate backend sync. Legacy notes.blackpiratex.com is only used in guest mode.',
+                              style: TextStyle(
+                                fontSize: 12.5,
+                                color: CupertinoColors.secondaryLabel
+                                    .resolveFrom(context),
+                              ),
+                            ),
+                          ),
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: CupertinoButton(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                color: CupertinoColors.activeBlue,
+                                borderRadius: BorderRadius.circular(12),
+                                onPressed: busy ? null : _testConnection,
+                                child: busy
+                                    ? const CupertinoActivityIndicator()
+                                    : const Text(
+                                        'Test Connection',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.w700,
+                                          color: CupertinoColors.white,
+                                        ),
+                                      ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: <Widget>[
+                            Expanded(
+                              child: CupertinoButton(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 10,
+                                ),
+                                color: CupertinoColors.tertiarySystemFill
+                                    .resolveFrom(context),
+                                borderRadius: BorderRadius.circular(12),
+                                onPressed: busy ? null : _forceReload,
+                                child: Text(
+                                  'Force Reload From API',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    color: CupertinoColors.label.resolveFrom(
+                                      context,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _BackendInfoRow(
+                          label: 'Cache status',
+                          value: widget.controller.backendCachePrimed
+                              ? 'Cached locally'
+                              : 'Not loaded from backend yet',
+                        ),
+                        _BackendInfoRow(
+                          label: 'Local changes',
+                          value: widget.controller.hasLocalBookChanges
+                              ? 'Yes (auto refresh paused)'
+                              : 'No',
+                        ),
+                        _BackendInfoRow(
+                          label: 'Last backend sync',
+                          value: syncLabel,
+                          isLast: backendStatus == null,
+                        ),
+                        if (backendStatus != null) ...<Widget>[
+                          const SizedBox(height: 10),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: CupertinoColors.systemGrey6.resolveFrom(
+                                context,
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              backendStatus,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: CupertinoColors.label.resolveFrom(
+                                  context,
                                 ),
                               ),
                             ),
                           ),
                         ],
-                      ),
-                      const SizedBox(height: 12),
-                      _BackendInfoRow(
-                        label: 'Cache status',
-                        value: widget.controller.backendCachePrimed
-                            ? 'Cached locally'
-                            : 'Not loaded from backend yet',
-                      ),
-                      _BackendInfoRow(
-                        label: 'Local changes',
-                        value: widget.controller.hasLocalBookChanges
-                            ? 'Yes (auto refresh paused)'
-                            : 'No',
-                      ),
-                      _BackendInfoRow(
-                        label: 'Last backend sync',
-                        value: syncLabel,
-                        isLast: backendStatus == null,
-                      ),
-                      if (backendStatus != null) ...<Widget>[
-                        const SizedBox(height: 10),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
-                          ),
-                          decoration: BoxDecoration(
-                            color: CupertinoColors.systemGrey6.resolveFrom(
-                              context,
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: Text(
-                            backendStatus,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: CupertinoColors.label.resolveFrom(context),
-                            ),
-                          ),
-                        ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
         );
       },
+    );
+  }
+}
+
+class _AccountSummaryCard extends StatelessWidget {
+  const _AccountSummaryCard({required this.controller, required this.onLogout});
+
+  final AppController controller;
+  final Future<void> Function()? onLogout;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = CupertinoColors.tertiarySystemFill.resolveFrom(context);
+    final label = CupertinoColors.label.resolveFrom(context);
+    final secondary = CupertinoColors.secondaryLabel.resolveFrom(context);
+    final isLoggedIn = controller.isLoggedIn;
+    final isGuest = controller.isGuestSession;
+    final name = controller.authDisplayName.isEmpty
+        ? (isGuest ? 'Guest' : 'Reader')
+        : controller.authDisplayName;
+    final email = controller.authEmail.trim();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: isLoggedIn
+                      ? CupertinoColors.activeBlue.withValues(alpha: 0.14)
+                      : CupertinoColors.systemGrey.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                alignment: Alignment.center,
+                child: Icon(
+                  isGuest
+                      ? CupertinoIcons.person
+                      : CupertinoIcons.person_crop_circle_fill,
+                  color: isLoggedIn
+                      ? CupertinoColors.activeBlue
+                      : CupertinoColors.secondaryLabel.resolveFrom(context),
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Text(
+                      name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: label,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      controller.authStatusLabel,
+                      style: TextStyle(fontSize: 13, color: secondary),
+                    ),
+                  ],
+                ),
+              ),
+              if (isLoggedIn)
+                _VerificationBadge(verified: controller.authEmailVerified),
+            ],
+          ),
+          if (email.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              decoration: BoxDecoration(
+                color: CupertinoColors.systemBackground.resolveFrom(context),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: <Widget>[
+                  Icon(CupertinoIcons.mail_solid, size: 16, color: secondary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      email,
+                      style: TextStyle(fontSize: 14, color: label),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          if (onLogout != null) ...<Widget>[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: CupertinoButton(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                color: CupertinoColors.systemRed.resolveFrom(context),
+                borderRadius: BorderRadius.circular(12),
+                onPressed: () => onLogout!(),
+                child: const Text(
+                  'Log Out',
+                  style: TextStyle(
+                    color: CupertinoColors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _VerificationBadge extends StatelessWidget {
+  const _VerificationBadge({required this.verified});
+
+  final bool verified;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = verified
+        ? CupertinoColors.activeGreen
+        : CupertinoColors.systemOrange;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Icon(
+            verified
+                ? CupertinoIcons.check_mark_circled_solid
+                : CupertinoIcons.exclamationmark_circle_fill,
+            size: 14,
+            color: color,
+          ),
+          const SizedBox(width: 5),
+          Text(
+            verified ? 'Verified' : 'Unverified',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

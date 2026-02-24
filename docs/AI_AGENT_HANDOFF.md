@@ -37,7 +37,7 @@ State and persistence:
 - `lib/services/local_backup_service.dart`: zip import/export of local app data + local cover image files
 
 Pages:
-- `lib/pages/auth_gate_page.dart` (first-open login/signup/guest UI; Firebase email/password auth + guest mode)
+- `lib/pages/auth_gate_page.dart` (auth gate after onboarding; Firebase email/password auth + hidden guest mode trigger)
 - `lib/pages/first_run_intro_page.dart` (first-open onboarding / intro tutorial)
 - `lib/pages/home_page.dart`
 - `lib/pages/book_details_page.dart`
@@ -283,6 +283,7 @@ Behavior:
   - `Continue as Guest` (local mode)
 - Signup/login use Firebase Auth and then call backend `GET /api/v1/me` to bootstrap account session
 - Signup sends a Firebase email verification email for unverified users
+- Hidden guest mode trigger: long-press the app icon on the auth gate (visible guest button removed)
 - Selected auth session is persisted locally so the auth gate is skipped on later launches until logout
 - Existing onboarding still appears after auth if it has not been completed yet
 - Logged-in mode stores the Firebase ID token in the existing backend credential field for compatibility, and refreshes token from Firebase before v1 API calls when possible
@@ -293,6 +294,7 @@ Behavior:
 - Guest mode continues using the legacy backend (`notes.blackpiratex.com`) and legacy endpoints
 - Logged-in mode uses the new v1 backend at `https://book-tracker-backend-inky.vercel.app`
 - Logged-in mode backend sync uses Firebase Auth ID tokens from the app (manual token paste remains a fallback)
+- On login/signup, the app attempts an immediate backend fetch to load account books right away
 - Logged-in mode supports:
   - full book fetch via `/api/v1/books`
   - book upsert via `PUT /api/v1/books/:id`
@@ -319,6 +321,16 @@ Behavior:
 - GitHub Actions generates `android/` with `flutter create`
 - CI copies repository-root `google-services.json` into `android/app/google-services.json`
 - `scripts/configure_generated_android.py` patches generated Gradle files to apply the Google Services plugin for Firebase
+
+### 16. Recent UX / Sync Behavior Tweaks
+
+Behavior:
+- Onboarding is shown before the auth gate on first launch
+- Guest mode no longer uses home pull-to-refresh for legacy backend; guest legacy reload is intended via Settings -> Force Reload From API
+- Guest mode legacy write push helpers are disabled (local edits stay local unless user uses explicit backend actions)
+- Direct-source search results now provide three add buttons: `Read`, `Reading`, and `Watchlist`
+- Settings hides advanced backend controls by default; tapping app version 3 times reveals/hides them
+- Theme now follows device light/dark mode automatically (no manual dark-mode switch in settings)
 
 ## Agent Workflow Expectation
 

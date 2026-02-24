@@ -110,6 +110,24 @@ class HomePage extends StatelessWidget {
   }
 
   Future<void> _refreshFromBackend(BuildContext context) async {
+    if (controller.isGuestSession) {
+      await showCupertinoDialog<void>(
+        context: context,
+        builder: (dialogContext) => CupertinoAlertDialog(
+          title: const Text('Use Force Reload'),
+          content: const Text(
+            'Guest mode no longer refreshes the legacy backend from pull-to-refresh. Use Settings > Force Reload From API instead.',
+          ),
+          actions: <Widget>[
+            CupertinoDialogAction(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
     try {
       await controller.refreshFromBackendIfChanged();
     } catch (e) {

@@ -74,6 +74,7 @@ class AppController extends ChangeNotifier {
   AppAuthSessionType _authSessionType = AppAuthSessionType.none;
   String _authDisplayName = '';
   String _authEmail = '';
+  bool _authEmailVerified = false;
   BookStatus _selectedShelf = BookStatus.reading;
   String _backendApiUrl = '';
   String _backendPassword = '';
@@ -93,6 +94,7 @@ class AppController extends ChangeNotifier {
   bool get shouldShowAuthGate => !_isLoading && !hasAuthSession;
   String get authDisplayName => _authDisplayName;
   String get authEmail => _authEmail;
+  bool get authEmailVerified => _authEmailVerified;
   String get authStatusLabel => switch (_authSessionType) {
     AppAuthSessionType.none => 'Signed out',
     AppAuthSessionType.guest => 'Guest (Local mode)',
@@ -122,10 +124,8 @@ class AppController extends ChangeNotifier {
       .where((book) => book.status == _selectedShelf)
       .toList(growable: false);
 
-  CupertinoThemeData get themeData => CupertinoThemeData(
-    brightness: _isDarkMode ? Brightness.dark : Brightness.light,
-    primaryColor: CupertinoColors.activeBlue,
-  );
+  CupertinoThemeData get themeData =>
+      CupertinoThemeData(primaryColor: CupertinoColors.activeBlue);
 
   Future<void> initialize() async {
     final snapshot = await _storage.load();
@@ -137,6 +137,7 @@ class AppController extends ChangeNotifier {
     _authSessionType = AppAuthSessionType.fromStorageValue(snapshot.authMode);
     _authDisplayName = snapshot.authDisplayName;
     _authEmail = snapshot.authEmail;
+    _authEmailVerified = false;
     _backendApiUrl = snapshot.backendApiUrl.trim().isEmpty
         ? defaultBackendApiUrl
         : snapshot.backendApiUrl;
@@ -189,6 +190,7 @@ class AppController extends ChangeNotifier {
     _authSessionType = AppAuthSessionType.guest;
     _authDisplayName = 'Guest';
     _authEmail = '';
+    _authEmailVerified = false;
     _backendCachePrimed = false;
     _lastBackendSyncAtIso = null;
     notifyListeners();
@@ -242,6 +244,7 @@ class AppController extends ChangeNotifier {
     _authSessionType = AppAuthSessionType.none;
     _authDisplayName = '';
     _authEmail = '';
+    _authEmailVerified = false;
     _backendPassword = '';
     _backendCachePrimed = false;
     _lastBackendSyncAtIso = null;
@@ -283,9 +286,25 @@ class AppController extends ChangeNotifier {
   }
 
   Future<void> addLocalBookFromDiscoveryResult(
-    ExternalBookSearchResult result,
-  ) {
-    return addBook(result.toDraft());
+    ExternalBookSearchResult result, {
+    BookStatus targetStatus = BookStatus.readingList,
+  }) {
+    final draft = result.toDraft();
+    return addBook(
+      BookDraft(
+        title: draft.title,
+        author: draft.author,
+        notes: draft.notes,
+        coverUrl: draft.coverUrl,
+        status: targetStatus,
+        rating: draft.rating,
+        pageCount: draft.pageCount,
+        progressPercent: targetStatus == BookStatus.read ? 100 : 0,
+        medium: draft.medium,
+        startDateIso: draft.startDateIso,
+        endDateIso: draft.endDateIso,
+      ),
+    );
   }
 
   Future<String> exportLocalBackup() async {
@@ -710,6 +729,7 @@ class AppController extends ChangeNotifier {
   }
 
   bool get _shouldAutoFetchBackendOnLaunch {
+    if (!usesAccountBackend) return false;
     if (effectiveBackendApiUrl.trim().isEmpty) return false;
     if (usesAccountBackend && _backendPassword.trim().isEmpty) return false;
     if (_hasLocalBookChanges) return false;
@@ -747,14 +767,8 @@ class AppController extends ChangeNotifier {
   }
 
   bool _canPushBookUpdateToBackend(BookItem book) {
-    if (usesAccountBackend) {
-      return _backendPassword.trim().isNotEmpty;
-    }
-    if (_backendApiUrl.trim().isEmpty || _backendPassword.trim().isEmpty) {
-      return false;
-    }
-    final id = book.id.trim().toUpperCase();
-    return id.startsWith('OL');
+    if (!usesAccountBackend) return false;
+    return _backendPassword.trim().isNotEmpty;
   }
 
   Future<BackendReloadResult> _applyFetchedBooks(
@@ -824,10 +838,16 @@ class AppController extends ChangeNotifier {
       idToken: session.idToken,
       bootstrapBackend: true,
     );
+    _authEmailVerified = session.emailVerified;
     if (!session.emailVerified) {
       _lastBackendStatusMessage =
           'Verification email sent to ${resolvedEmail.isEmpty ? 'your email' : resolvedEmail}. Check your inbox before continuing on new devices.';
       notifyListeners();
+    }
+    try {
+      await forceReloadFromBackend(userInitiated: false);
+    } catch (_) {
+      // Keep login successful even if backend fetch fails.
     }
   }
 
@@ -842,6 +862,7 @@ class AppController extends ChangeNotifier {
         ? 'Reader'
         : displayName.trim();
     _authEmail = email.trim();
+    _authEmailVerified = false;
     _backendApiUrl = accountBackendApiUrl;
     _backendPassword = idToken.trim();
     _backendCachePrimed = false;
@@ -883,6 +904,7 @@ class AppController extends ChangeNotifier {
         if (session.email.trim().isNotEmpty) {
           _authEmail = session.email.trim();
         }
+        _authEmailVerified = session.emailVerified;
         if (changed) {
           notifyListeners();
           await _persistAuthState();
@@ -940,6 +962,7 @@ class AppController extends ChangeNotifier {
     _authSessionType = AppAuthSessionType.fromStorageValue(snapshot.authMode);
     _authDisplayName = snapshot.authDisplayName;
     _authEmail = snapshot.authEmail;
+    _authEmailVerified = false;
     _backendApiUrl = snapshot.backendApiUrl.trim().isEmpty
         ? defaultBackendApiUrl
         : snapshot.backendApiUrl;

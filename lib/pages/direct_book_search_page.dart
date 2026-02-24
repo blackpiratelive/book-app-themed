@@ -1,3 +1,4 @@
+import 'package:book_app_themed/models/book.dart';
 import 'package:book_app_themed/services/book_discovery_service.dart';
 import 'package:book_app_themed/state/app_controller.dart';
 import 'package:book_app_themed/widgets/book_cover.dart';
@@ -71,18 +72,34 @@ class _DirectBookSearchPageState extends State<DirectBookSearchPage> {
     }
   }
 
-  Future<void> _addLocally(ExternalBookSearchResult result) async {
+  Future<void> _addBook(
+    ExternalBookSearchResult result,
+    BookStatus targetStatus,
+  ) async {
     final key = '${result.source}:${result.id}:${result.title}';
+    final targetLabel = switch (targetStatus) {
+      BookStatus.reading => 'Reading',
+      BookStatus.read => 'Read',
+      BookStatus.readingList => 'Watchlist',
+      BookStatus.abandoned => 'Abandoned',
+    };
     setState(() {
       _addingKey = key;
-      _statusMessage = 'Adding "${result.title}" locally...';
+      _statusMessage = widget.controller.usesAccountBackend
+          ? 'Adding "${result.title}" to $targetLabel and syncing account...'
+          : 'Adding "${result.title}" to $targetLabel locally...';
     });
-    await widget.controller.addLocalBookFromDiscoveryResult(result);
+    await widget.controller.addLocalBookFromDiscoveryResult(
+      result,
+      targetStatus: targetStatus,
+    );
     if (!mounted) return;
     setState(() {
       _addedKeys.add(key);
       _addingKey = null;
-      _statusMessage = 'Added "${result.title}" to Reading List (local).';
+      _statusMessage = widget.controller.usesAccountBackend
+          ? 'Added "${result.title}" to $targetLabel and synced to account.'
+          : 'Added "${result.title}" to $targetLabel (local).';
     });
   }
 
@@ -139,7 +156,9 @@ class _DirectBookSearchPageState extends State<DirectBookSearchPage> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Adds books locally only. Cover URLs from the source APIs are saved directly on the book.',
+                    widget.controller.usesAccountBackend
+                        ? 'Direct-source adds are saved in-app and then synced to your account backend.'
+                        : 'Guest mode adds are local only. Cover URLs from the source APIs are saved directly on the book.',
                     style: TextStyle(fontSize: 12.5, color: secondary),
                   ),
                 ],
@@ -184,9 +203,13 @@ class _DirectBookSearchPageState extends State<DirectBookSearchPage> {
                 final key = '${result.source}:${result.id}:${result.title}';
                 return _DirectSearchResultCard(
                   result: result,
+                  usesAccountBackend: widget.controller.usesAccountBackend,
                   isAdding: _addingKey == key,
                   isAdded: _addedKeys.contains(key),
-                  onAdd: () => _addLocally(result),
+                  onAddToRead: () => _addBook(result, BookStatus.read),
+                  onAddToReading: () => _addBook(result, BookStatus.reading),
+                  onAddToWatchlist: () =>
+                      _addBook(result, BookStatus.readingList),
                 );
               }),
             ],
@@ -200,15 +223,21 @@ class _DirectBookSearchPageState extends State<DirectBookSearchPage> {
 class _DirectSearchResultCard extends StatelessWidget {
   const _DirectSearchResultCard({
     required this.result,
+    required this.usesAccountBackend,
     required this.isAdding,
     required this.isAdded,
-    required this.onAdd,
+    required this.onAddToRead,
+    required this.onAddToReading,
+    required this.onAddToWatchlist,
   });
 
   final ExternalBookSearchResult result;
+  final bool usesAccountBackend;
   final bool isAdding;
   final bool isAdded;
-  final VoidCallback onAdd;
+  final VoidCallback onAddToRead;
+  final VoidCallback onAddToReading;
+  final VoidCallback onAddToWatchlist;
 
   @override
   Widget build(BuildContext context) {
@@ -263,33 +292,76 @@ class _DirectSearchResultCard extends StatelessWidget {
                   style: TextStyle(fontSize: 12, color: secondary),
                 ),
                 const SizedBox(height: 8),
-                CupertinoButton(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
+                if (isAdding)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 8),
+                    child: CupertinoActivityIndicator(),
+                  )
+                else
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: <Widget>[
+                      _MiniAddButton(
+                        label: isAdded ? 'Added' : 'Read',
+                        color: isAdded
+                            ? CupertinoColors.systemGrey4.resolveFrom(context)
+                            : CupertinoColors.systemGreen,
+                        onPressed: isAdded ? null : onAddToRead,
+                      ),
+                      _MiniAddButton(
+                        label: 'Reading',
+                        color: CupertinoColors.activeBlue,
+                        onPressed: isAdded ? null : onAddToReading,
+                      ),
+                      _MiniAddButton(
+                        label: 'Watchlist',
+                        color: usesAccountBackend
+                            ? CupertinoColors.systemIndigo
+                            : CupertinoColors.systemOrange,
+                        onPressed: isAdded ? null : onAddToWatchlist,
+                      ),
+                    ],
                   ),
-                  color: isAdded
-                      ? CupertinoColors.systemGrey4.resolveFrom(context)
-                      : CupertinoColors.activeGreen,
-                  borderRadius: BorderRadius.circular(10),
-                  onPressed: (isAdding || isAdded) ? null : onAdd,
-                  child: isAdding
-                      ? const CupertinoActivityIndicator()
-                      : Text(
-                          isAdded ? 'Added' : 'Add Locally',
-                          style: TextStyle(
-                            color: isAdded
-                                ? CupertinoColors.label.resolveFrom(context)
-                                : CupertinoColors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12.5,
-                          ),
-                        ),
-                ),
               ],
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MiniAddButton extends StatelessWidget {
+  const _MiniAddButton({
+    required this.label,
+    required this.color,
+    required this.onPressed,
+  });
+
+  final String label;
+  final Color color;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      minSize: 0,
+      color: onPressed == null
+          ? CupertinoColors.systemGrey4.resolveFrom(context)
+          : color,
+      borderRadius: BorderRadius.circular(10),
+      onPressed: onPressed,
+      child: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12.5,
+          fontWeight: FontWeight.w700,
+          color: onPressed == null
+              ? CupertinoColors.label.resolveFrom(context)
+              : CupertinoColors.white,
+        ),
       ),
     );
   }
