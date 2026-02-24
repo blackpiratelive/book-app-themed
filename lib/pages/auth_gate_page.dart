@@ -168,15 +168,13 @@ class _AuthGatePageState extends State<AuthGatePage> {
                                     child: Text('Log In'),
                                   ),
                                 },
-                                onValueChanged: _submitting
-                                    ? null
-                                    : (value) {
-                                        if (value == null) return;
-                                        setState(() {
-                                          _mode = value;
-                                          _errorText = null;
-                                        });
-                                      },
+                                onValueChanged: (value) {
+                                  if (_submitting || value == null) return;
+                                  setState(() {
+                                    _mode = value;
+                                    _errorText = null;
+                                  });
+                                },
                               ),
                               const SizedBox(height: 14),
                               if (_isSignup) ...<Widget>[
