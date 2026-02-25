@@ -411,6 +411,48 @@ class BookDetailsPage extends StatelessWidget {
     await controller.updateBookProgressLocally(book.id, picked);
   }
 
+  Future<void> _markAsReading(BuildContext context, BookItem book) async {
+    final draft = BookDraft(
+      title: book.title,
+      author: book.author,
+      notes: book.notes,
+      coverUrl: book.coverUrl,
+      status: BookStatus.reading,
+      rating: book.rating,
+      pageCount: book.pageCount,
+      progressPercent: book.progressPercent,
+      medium: book.medium,
+      startDateIso: DateTime.now().toIso8601String(),
+      endDateIso: book.endDateIso,
+    );
+    try {
+      await controller.updateBook(book.id, draft);
+    } catch (_) {
+      // Errors handled elegantly inside controller update UI sync
+    }
+  }
+
+  Future<void> _markAsFinished(BuildContext context, BookItem book) async {
+    final draft = BookDraft(
+      title: book.title,
+      author: book.author,
+      notes: book.notes,
+      coverUrl: book.coverUrl,
+      status: BookStatus.read,
+      rating: book.rating,
+      pageCount: book.pageCount,
+      progressPercent: 100,
+      medium: book.medium,
+      startDateIso: book.startDateIso,
+      endDateIso: DateTime.now().toIso8601String(),
+    );
+    try {
+      await controller.updateBook(book.id, draft);
+    } catch (_) {
+      // Errors handled elegantly inside controller update UI sync
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -434,149 +476,314 @@ class BookDetailsPage extends StatelessWidget {
         }
 
         return CupertinoPageScaffold(
-          navigationBar: CupertinoNavigationBar(
-            middle: const Text('Book Details'),
-            trailing: CupertinoButton(
-              padding: EdgeInsets.zero,
-              minimumSize: const Size.square(30),
-              onPressed: () => _editBook(context, book),
-              child: const Text('Edit'),
-            ),
-          ),
-          child: SafeArea(
-            bottom: false,
-            child: Stack(
-              children: <Widget>[
-                ListView(
-                  padding: EdgeInsets.fromLTRB(
-                    16,
-                    12,
-                    16,
-                    book.status == BookStatus.reading ? 108 : 24,
+          child: Stack(
+            children: <Widget>[
+              // Blurred Background Layer
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 250,
+                child: ClipRect(
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: <Widget>[
+                      if (book.coverUrl.trim().isNotEmpty)
+                        Opacity(
+                          opacity: 0.6,
+                          child: CachedNetworkImage(
+                            imageUrl: book.coverUrl,
+                            fit: BoxFit.cover,
+                            cacheManager: bookCoverCacheManager,
+                            errorWidget: (context, url, err) =>
+                                Container(color: CupertinoColors.systemGrey),
+                          ),
+                        )
+                      else
+                        Container(color: CupertinoColors.systemGrey),
+                      BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: <Color>[
+                                CupertinoColors.systemBackground
+                                    .resolveFrom(context)
+                                    .withValues(alpha: 0.1),
+                                CupertinoColors.systemBackground.resolveFrom(
+                                  context,
+                                ),
+                              ],
+                              stops: const <double>[0.0, 1.0],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                  children: <Widget>[
-                    Center(
-                      child: BookCover(
-                        title: book.title,
-                        coverUrl: book.coverUrl,
-                        width: 168,
-                        height: 244,
-                        borderRadius: 20,
-                        heroTag: 'book-cover-${book.id}',
-                      ),
+                ),
+              ),
+              CustomScrollView(
+                slivers: <Widget>[
+                  CupertinoSliverNavigationBar(
+                    largeTitle: const Text('Book Details'),
+                    trailing: CupertinoButton(
+                      padding: EdgeInsets.zero,
+                      minimumSize: const Size.square(30),
+                      onPressed: () => _editBook(context, book),
+                      child: const Text('Edit'),
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      book.title,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: CupertinoColors.label.resolveFrom(context),
-                        height: 1.1,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      book.author.isEmpty ? 'Unknown author' : book.author,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: CupertinoColors.secondaryLabel.resolveFrom(
-                          context,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Row(
-                      children: <Widget>[
-                        Expanded(
-                          child: book.status == BookStatus.reading
-                              ? _ReadingProgressStatusCard(
-                                  progressPercent: book.progressPercent,
-                                )
-                              : _StatusBadge(status: book.status),
-                        ),
-                        const SizedBox(width: 10),
-                        CupertinoButton(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
+                  ),
+                  SliverSafeArea(
+                    top: false,
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate(<Widget>[
+                        const SizedBox(height: 12),
+                        Center(
+                          child: BookCover(
+                            title: book.title,
+                            coverUrl: book.coverUrl,
+                            width: 168,
+                            height: 244,
+                            borderRadius: 20,
+                            heroTag: 'book-cover-${book.id}',
                           ),
-                          color: CupertinoColors.systemRed.withValues(
-                            alpha: 0.14,
+                        ),
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            book.title,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.w800,
+                              color: CupertinoColors.label.resolveFrom(context),
+                              height: 1.1,
+                            ),
                           ),
-                          borderRadius: BorderRadius.circular(12),
-                          onPressed: () => _deleteBook(context, book),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              Icon(
-                                CupertinoIcons.delete_solid,
-                                color: CupertinoColors.systemRed,
-                                size: 16,
+                        ),
+                        const SizedBox(height: 6),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Text(
+                            book.author.isEmpty
+                                ? 'Unknown author'
+                                : book.author,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: CupertinoColors.secondaryLabel.resolveFrom(
+                                context,
                               ),
-                              SizedBox(width: 6),
-                              Text(
-                                'Delete',
-                                style: TextStyle(
-                                  color: CupertinoColors.systemRed,
-                                  fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _ActionButtonsRow(
+                            book: book,
+                            onMarkReading: () => _markAsReading(context, book),
+                            onMarkFinished: () =>
+                                _markAsFinished(context, book),
+                            onDelete: () => _deleteBook(context, book),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: SectionCard(
+                            title: 'More Details',
+                            child: _DetailsGrid(book: book),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: SectionCard(
+                            title: 'Description',
+                            child: Text(
+                              book.notes.trim().isEmpty
+                                  ? 'No description available.'
+                                  : book.notes.trim(),
+                              style: TextStyle(
+                                fontSize: 14,
+                                height: 1.3,
+                                color: CupertinoColors.label.resolveFrom(
+                                  context,
                                 ),
                               ),
-                            ],
+                            ),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    SectionCard(
-                      title: 'More Details',
-                      child: _DetailsGrid(book: book),
-                    ),
-                    const SizedBox(height: 12),
-                    SectionCard(
-                      title: 'Description',
-                      child: Text(
-                        book.notes.trim().isEmpty
-                            ? 'No description available.'
-                            : book.notes.trim(),
-                        style: TextStyle(
-                          fontSize: 14,
-                          height: 1.3,
-                          color: CupertinoColors.label.resolveFrom(context),
+                        const SizedBox(height: 12),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: SectionCard(
+                            title: 'Highlights',
+                            child: _HighlightsList(
+                              highlights: book.highlights,
+                              onAddHighlight: () =>
+                                  _addHighlight(context, book),
+                              onCopyHighlight: _copyHighlight,
+                            ),
+                          ),
                         ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SectionCard(
-                      title: 'Highlights',
-                      child: _HighlightsList(
-                        highlights: book.highlights,
-                        onAddHighlight: () => _addHighlight(context, book),
-                        onCopyHighlight: _copyHighlight,
-                      ),
-                    ),
-                  ],
-                ),
-                if (book.status == BookStatus.reading)
-                  Positioned(
-                    left: 16,
-                    right: 16,
-                    bottom: 12,
-                    child: _ReadingQuickActionsBar(
-                      progressPercent: book.progressPercent,
-                      onAddHighlight: () =>
-                          _addQuickHighlightLocally(context, book),
-                      onAdjustProgress: () =>
-                          _adjustQuickProgressLocally(context, book),
+                        SizedBox(
+                          height: book.status == BookStatus.reading ? 108 : 24,
+                        ),
+                      ]),
                     ),
                   ),
-              ],
-            ),
+                ],
+              ),
+              if (book.status == BookStatus.reading)
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 12,
+                  child: _ReadingQuickActionsBar(
+                    progressPercent: book.progressPercent,
+                    onAddHighlight: () =>
+                        _addQuickHighlightLocally(context, book),
+                    onAdjustProgress: () =>
+                        _adjustQuickProgressLocally(context, book),
+                  ),
+                ),
+            ],
           ),
         );
       },
+    );
+  }
+}
+
+class _ActionButtonsRow extends StatelessWidget {
+  const _ActionButtonsRow({
+    required this.book,
+    required this.onMarkReading,
+    required this.onMarkFinished,
+    required this.onDelete,
+  });
+
+  final BookItem book;
+  final VoidCallback onMarkReading;
+  final VoidCallback onMarkFinished;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = CupertinoTheme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    final primaryBg = theme.primaryColor;
+    final primaryFg = CupertinoColors.white;
+
+    Widget renderStatusShelfButton() {
+      return Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: primaryBg,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Icon(book.status.icon, color: primaryFg, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              book.status.label,
+              style: TextStyle(
+                color: primaryFg,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    Widget renderQuickActionButton() {
+      final isReading = book.status == BookStatus.reading;
+      final label = isReading ? 'Mark as Finished' : 'Mark as Reading';
+      final icon = isReading
+          ? CupertinoIcons.check_mark_circled
+          : CupertinoIcons.book;
+      final action = isReading ? onMarkFinished : onMarkReading;
+
+      return CupertinoButton(
+        padding: EdgeInsets.zero,
+        minSize: 0,
+        onPressed: action,
+        child: Container(
+          height: 44,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: primaryBg,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(icon, color: primaryFg, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: primaryFg,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 15,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Widget renderDeleteButton() {
+      return CupertinoButton(
+        padding: EdgeInsets.zero,
+        minSize: 0,
+        onPressed: onDelete,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: CupertinoColors.systemRed.resolveFrom(context),
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: const Icon(
+            CupertinoIcons.delete_solid,
+            color: CupertinoColors.white,
+            size: 20,
+          ),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          renderStatusShelfButton(),
+          const SizedBox(width: 8),
+          if (book.status != BookStatus.read &&
+              book.status != BookStatus.abandoned) ...<Widget>[
+            renderQuickActionButton(),
+            const SizedBox(width: 8),
+          ],
+          renderDeleteButton(),
+        ],
+      ),
     );
   }
 }
@@ -747,7 +954,7 @@ class _DetailsGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         const spacing = 10.0;
-        final width = (constraints.maxWidth - spacing) / 2;
+        final width = (constraints.maxWidth - (spacing * 2)) / 3;
         return Wrap(
           spacing: spacing,
           runSpacing: spacing,
