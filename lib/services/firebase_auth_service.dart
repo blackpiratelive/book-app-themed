@@ -30,6 +30,8 @@ class FirebaseAuthSession {
 class FirebaseAuthService {
   const FirebaseAuthService();
 
+  static const String _androidPackageName = 'com.blackpiratex.book';
+
   Future<FirebaseAuthSession> signInWithEmailPassword({
     required String email,
     required String password,
@@ -105,7 +107,12 @@ class FirebaseAuthService {
         user = auth.currentUser ?? user;
       }
       if (!user.emailVerified) {
-        await user.sendEmailVerification();
+        final actionCodeSettings = _defaultEmailActionSettings();
+        if (actionCodeSettings == null) {
+          await user.sendEmailVerification();
+        } else {
+          await user.sendEmailVerification(actionCodeSettings);
+        }
       }
       return _sessionFromUser(user, forceRefresh: true);
     } on FirebaseAuthException catch (e) {
@@ -139,7 +146,10 @@ class FirebaseAuthService {
   Future<void> sendPasswordResetEmail({required String email}) async {
     final auth = await _auth();
     try {
-      await auth.sendPasswordResetEmail(email: email.trim());
+      await auth.sendPasswordResetEmail(
+        email: email.trim(),
+        actionCodeSettings: _defaultEmailActionSettings(),
+      );
     } on FirebaseAuthException catch (e) {
       throw AppFirebaseAuthException(_messageForFirebaseAuthError(e));
     }
@@ -148,6 +158,21 @@ class FirebaseAuthService {
   Future<FirebaseAuth> _auth() async {
     await _ensureInitialized();
     return FirebaseAuth.instance;
+  }
+
+  ActionCodeSettings? _defaultEmailActionSettings() {
+    if (Firebase.apps.isEmpty) return null;
+    final projectId = Firebase.app().options.projectId.trim();
+    if (projectId.isEmpty) return null;
+
+    // Use Firebase Hosting's default auth action handler domain so password
+    // reset and verification emails are generated with a valid continue URL.
+    return ActionCodeSettings(
+      url: 'https://$projectId.firebaseapp.com/__/auth/action',
+      handleCodeInApp: false,
+      androidPackageName: _androidPackageName,
+      androidInstallIfNotAvailable: false,
+    );
   }
 
   Future<void> _ensureInitialized() async {
@@ -204,6 +229,14 @@ String _messageForFirebaseAuthError(FirebaseAuthException error) {
       return 'Please sign in again and retry.';
     case 'missing-email':
       return 'Enter your email address first.';
+    case 'invalid-continue-uri':
+    case 'missing-continue-uri':
+      return 'Firebase email link URL is invalid. Check Auth email action URL settings.';
+    case 'unauthorized-continue-uri':
+      return 'Firebase blocked the email link URL. Add the domain in Auth -> Settings -> Authorized domains.';
+    case 'missing-android-pkg-name':
+    case 'invalid-dynamic-link-domain':
+      return 'Firebase email action settings are incomplete. Check Android package and auth link domain settings.';
     default:
       return error.message ?? 'Authentication failed.';
   }

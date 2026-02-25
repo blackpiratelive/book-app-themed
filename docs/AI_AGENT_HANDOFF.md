@@ -4,6 +4,12 @@ This document is for future AI agents working on this repository.
 
 It summarizes what is currently implemented, how the app is structured, and the constraints already established by the user.
 
+## Agent Workflow Requirement (User Preference)
+
+- After making code changes, always update this handoff document with relevant changes/notes before finishing.
+- After completing a requested fix/change, always commit the changes and push them to the remote branch (unless the user explicitly says not to).
+- If unrelated modified/untracked files are present, do not include them in the commit unless the user asks.
+
 ## Project Summary
 
 - App type: Flutter app (Android-targeted build via GitHub Actions)
@@ -285,6 +291,7 @@ Behavior:
 - Signup/login use Firebase Auth and then call backend `GET /api/v1/me` to bootstrap account session
 - Google sign-in also authenticates through Firebase and uses the same backend v1 bootstrap flow
 - Signup sends a Firebase email verification email for unverified users
+- Verification and password-reset emails are sent with explicit Firebase `ActionCodeSettings` using the project's `https://<projectId>.firebaseapp.com/__/auth/action` URL and Android package `com.blackpiratex.book` to avoid silent email-action delivery issues caused by missing/invalid continue URL defaults
 - Hidden guest mode trigger: long-press the app icon on the auth gate (visible guest button removed)
 - Auth gate UI copy was simplified (technical backend text removed); login mode now includes a `Forgot password?` link (Firebase reset email)
 - Selected auth session is persisted locally so the auth gate is skipped on later launches until logout
