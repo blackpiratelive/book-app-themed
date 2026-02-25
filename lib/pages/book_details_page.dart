@@ -6,7 +6,6 @@ import 'package:book_app_themed/services/backend_api_service.dart';
 import 'package:book_app_themed/state/app_controller.dart';
 import 'package:book_app_themed/utils/date_formatters.dart';
 import 'package:book_app_themed/widgets/book_cover.dart';
-import 'package:book_app_themed/widgets/section_card.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
@@ -477,14 +476,22 @@ class BookDetailsPage extends StatelessWidget {
         }
 
         return CupertinoPageScaffold(
+          navigationBar: CupertinoNavigationBar(
+            middle: const Text('Book Details'),
+            trailing: CupertinoButton(
+              padding: EdgeInsets.zero,
+              minimumSize: const Size.square(30),
+              onPressed: () => _editBook(context, book),
+              child: const Text('Edit'),
+            ),
+          ),
           child: Stack(
             children: <Widget>[
-              // Blurred Background Layer
               Positioned(
                 top: 0,
                 left: 0,
                 right: 0,
-                height: 250,
+                height: 320,
                 child: ClipRect(
                   child: Stack(
                     fit: StackFit.expand,
@@ -511,12 +518,15 @@ class BookDetailsPage extends StatelessWidget {
                               colors: <Color>[
                                 CupertinoColors.systemBackground
                                     .resolveFrom(context)
-                                    .withValues(alpha: 0.1),
+                                    .withValues(alpha: 0.04),
+                                CupertinoColors.systemBackground
+                                    .resolveFrom(context)
+                                    .withValues(alpha: 0.48),
                                 CupertinoColors.systemBackground.resolveFrom(
                                   context,
                                 ),
                               ],
-                              stops: const <double>[0.0, 1.0],
+                              stops: const <double>[0.0, 0.55, 1.0],
                             ),
                           ),
                         ),
@@ -527,41 +537,32 @@ class BookDetailsPage extends StatelessWidget {
               ),
               CustomScrollView(
                 slivers: <Widget>[
-                  CupertinoSliverNavigationBar(
-                    largeTitle: const Text('Book Details'),
-                    trailing: CupertinoButton(
-                      padding: EdgeInsets.zero,
-                      minimumSize: const Size.square(30),
-                      onPressed: () => _editBook(context, book),
-                      child: const Text('Edit'),
-                    ),
-                  ),
                   SliverSafeArea(
                     top: false,
                     sliver: SliverList(
                       delegate: SliverChildListDelegate(<Widget>[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 14),
                         Center(
                           child: BookCover(
                             title: book.title,
                             coverUrl: book.coverUrl,
-                            width: 168,
-                            height: 244,
-                            borderRadius: 20,
+                            width: 184,
+                            height: 268,
+                            borderRadius: 22,
                             heroTag: 'book-cover-${book.id}',
                           ),
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 18),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: Text(
                             book.title,
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              fontSize: 26,
+                              fontSize: 28,
                               fontWeight: FontWeight.w800,
                               color: CupertinoColors.label.resolveFrom(context),
-                              height: 1.1,
+                              height: 1.08,
                             ),
                           ),
                         ),
@@ -581,7 +582,7 @@ class BookDetailsPage extends StatelessWidget {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 18),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
                           child: _ActionButtonsRow(
@@ -595,7 +596,7 @@ class BookDetailsPage extends StatelessWidget {
                         const SizedBox(height: 16),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: SectionCard(
+                          child: _DetailsSectionCard(
                             title: 'More Details',
                             child: _DetailsGrid(book: book),
                           ),
@@ -603,7 +604,7 @@ class BookDetailsPage extends StatelessWidget {
                         const SizedBox(height: 12),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: SectionCard(
+                          child: _DetailsSectionCard(
                             title: 'Description',
                             child: Text(
                               book.notes.trim().isEmpty
@@ -622,7 +623,7 @@ class BookDetailsPage extends StatelessWidget {
                         const SizedBox(height: 12),
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: SectionCard(
+                          child: _DetailsSectionCard(
                             title: 'Highlights',
                             child: _HighlightsList(
                               highlights: book.highlights,
@@ -676,33 +677,24 @@ class _ActionButtonsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = CupertinoTheme.of(context);
-    final primaryBg = theme.primaryColor;
-    const primaryFg = CupertinoColors.white;
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final primary = CupertinoTheme.of(context).primaryColor;
+    final blueA = Color.alphaBlend(
+      CupertinoColors.systemBlue.resolveFrom(context).withValues(alpha: 0.18),
+      primary,
+    );
+    final blueB = primary;
+    final shadowColor = CupertinoColors.black.withValues(
+      alpha: isDark ? 0.24 : 0.12,
+    );
 
     Widget renderStatusShelfButton() {
-      return Container(
-        height: 44,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        decoration: BoxDecoration(
-          color: primaryBg,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            Icon(book.status.icon, color: primaryFg, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              book.status.label,
-              style: const TextStyle(
-                color: primaryFg,
-                fontWeight: FontWeight.w700,
-                fontSize: 15,
-              ),
-            ),
-          ],
-        ),
+      return _HeroActionPill(
+        icon: book.status.icon,
+        label: book.status.label,
+        start: blueA,
+        end: blueB,
+        shadowColor: shadowColor,
       );
     }
 
@@ -718,28 +710,13 @@ class _ActionButtonsRow extends StatelessWidget {
         padding: EdgeInsets.zero,
         minimumSize: Size.zero,
         onPressed: action,
-        child: Container(
-          height: 44,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: primaryBg,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              Icon(icon, color: primaryFg, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: primaryFg,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 15,
-                ),
-              ),
-            ],
-          ),
+        child: _HeroActionPill(
+          icon: icon,
+          label: label,
+          start: blueA,
+          end: blueB,
+          shadowColor: shadowColor,
+          fontWeight: FontWeight.w600,
         ),
       );
     }
@@ -750,11 +727,29 @@ class _ActionButtonsRow extends StatelessWidget {
         minimumSize: Size.zero,
         onPressed: onDelete,
         child: Container(
-          width: 44,
-          height: 44,
+          width: 48,
+          height: 48,
           decoration: BoxDecoration(
-            color: CupertinoColors.systemRed.resolveFrom(context),
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: <Color>[
+                CupertinoColors.systemRed
+                    .resolveFrom(context)
+                    .withValues(alpha: 0.88),
+                CupertinoColors.systemRed.resolveFrom(context),
+              ],
+            ),
             shape: BoxShape.circle,
+            boxShadow: <BoxShadow>[
+              BoxShadow(
+                color: CupertinoColors.systemRed
+                    .resolveFrom(context)
+                    .withValues(alpha: 0.28),
+                blurRadius: 18,
+                offset: const Offset(0, 7),
+              ),
+            ],
           ),
           alignment: Alignment.center,
           child: const Icon(
@@ -766,22 +761,14 @@ class _ActionButtonsRow extends StatelessWidget {
       );
     }
 
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      physics: const BouncingScrollPhysics(),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          renderStatusShelfButton(),
-          const SizedBox(width: 8),
-          if (book.status != BookStatus.read &&
-              book.status != BookStatus.abandoned) ...<Widget>[
-            renderQuickActionButton(),
-            const SizedBox(width: 8),
-          ],
-          renderDeleteButton(),
-        ],
-      ),
+    return Row(
+      children: <Widget>[
+        Expanded(child: renderStatusShelfButton()),
+        const SizedBox(width: 10),
+        Expanded(child: renderQuickActionButton()),
+        const SizedBox(width: 10),
+        renderDeleteButton(),
+      ],
     );
   }
 }
@@ -834,7 +821,7 @@ class _DetailsGrid extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        const spacing = 10.0;
+        const spacing = 12.0;
         final width = (constraints.maxWidth - (spacing * 2)) / 3;
         return Wrap(
           spacing: spacing,
@@ -928,9 +915,10 @@ class _HighlightsList extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: border.withValues(alpha: 0.28)),
+              color: CupertinoColors.secondarySystemGroupedBackground
+                  .resolveFrom(context),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: border.withValues(alpha: 0.20)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -994,8 +982,8 @@ class _HighlightsList extends StatelessWidget {
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: cardFill,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: border.withValues(alpha: 0.28)),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: border.withValues(alpha: 0.18)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1100,10 +1088,10 @@ class _ReadingQuickActionsBar extends StatelessWidget {
     final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
     final border = CupertinoColors.separator
         .resolveFrom(context)
-        .withValues(alpha: 0.22);
+        .withValues(alpha: 0.16);
     final background =
         (isDark ? const Color(0xFF121316) : CupertinoColors.white).withValues(
-          alpha: isDark ? 0.72 : 0.76,
+          alpha: isDark ? 0.78 : 0.88,
         );
 
     return SafeArea(
@@ -1120,10 +1108,10 @@ class _ReadingQuickActionsBar extends StatelessWidget {
               boxShadow: <BoxShadow>[
                 BoxShadow(
                   color: CupertinoColors.black.withValues(
-                    alpha: isDark ? 0.28 : 0.12,
+                    alpha: isDark ? 0.30 : 0.10,
                   ),
-                  blurRadius: 18,
-                  offset: const Offset(0, 8),
+                  blurRadius: 26,
+                  offset: const Offset(0, 10),
                 ),
               ],
             ),
@@ -1183,9 +1171,9 @@ class _GlassyQuickActionButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
         decoration: BoxDecoration(
-          color: resolvedTint.withValues(alpha: 0.10),
-          borderRadius: BorderRadius.circular(13),
-          border: Border.all(color: resolvedTint.withValues(alpha: 0.16)),
+          color: resolvedTint.withValues(alpha: 0.09),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: resolvedTint.withValues(alpha: 0.14)),
         ),
         child: Row(
           children: <Widget>[
@@ -1241,23 +1229,28 @@ class _DetailTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tint = tile.tint.resolveFrom(context);
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
     final border = CupertinoColors.separator.resolveFrom(context);
-    final baseFill = CupertinoColors.tertiarySystemFill.resolveFrom(context);
+    final baseFill = CupertinoColors.secondarySystemGroupedBackground
+        .resolveFrom(context);
     final tileFill = Color.alphaBlend(
-      tint.withValues(
-        alpha: CupertinoTheme.of(context).brightness == Brightness.dark
-            ? 0.12
-            : 0.06,
-      ),
+      tint.withValues(alpha: isDark ? 0.14 : 0.07),
       baseFill,
     );
 
     return Container(
-      padding: const EdgeInsets.all(10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: tileFill,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: border.withValues(alpha: 0.22)),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: border.withValues(alpha: 0.14)),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: CupertinoColors.black.withValues(alpha: isDark ? 0.0 : 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1265,15 +1258,15 @@ class _DetailTile extends StatelessWidget {
           Row(
             children: <Widget>[
               Container(
-                width: 24,
-                height: 24,
+                width: 26,
+                height: 26,
                 decoration: BoxDecoration(
-                  color: tint.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(7),
+                  color: tint.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: tint.withValues(alpha: 0.16)),
                 ),
                 alignment: Alignment.center,
-                child: Icon(tile.icon, size: 13, color: tint),
+                child: Icon(tile.icon, size: 14, color: tint),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -1294,12 +1287,128 @@ class _DetailTile extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 15,
               fontWeight: FontWeight.w700,
               color: CupertinoColors.label.resolveFrom(context),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _HeroActionPill extends StatelessWidget {
+  const _HeroActionPill({
+    required this.icon,
+    required this.label,
+    required this.start,
+    required this.end,
+    required this.shadowColor,
+    this.fontWeight = FontWeight.w700,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color start;
+  final Color end;
+  final Color shadowColor;
+  final FontWeight fontWeight;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 48,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: <Color>[start, end],
+        ),
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: shadowColor,
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Icon(icon, color: CupertinoColors.white, size: 18),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: CupertinoColors.white,
+                fontWeight: fontWeight,
+                fontSize: 14.5,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DetailsSectionCard extends StatelessWidget {
+  const _DetailsSectionCard({
+    required this.title,
+    required this.child,
+    this.padding = const EdgeInsets.all(14),
+  });
+
+  final String title;
+  final Widget child;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = CupertinoTheme.of(context).brightness == Brightness.dark;
+    final background = isDark
+        ? CupertinoColors.secondarySystemGroupedBackground.resolveFrom(context)
+        : CupertinoColors.white;
+    final border = CupertinoColors.separator.resolveFrom(context);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: border.withValues(alpha: isDark ? 0.20 : 0.14),
+        ),
+        boxShadow: <BoxShadow>[
+          BoxShadow(
+            color: CupertinoColors.black.withValues(alpha: isDark ? 0.0 : 0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: padding,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12.8,
+                fontWeight: FontWeight.w700,
+                color: CupertinoColors.secondaryLabel.resolveFrom(context),
+              ),
+            ),
+            const SizedBox(height: 10),
+            child,
+          ],
+        ),
       ),
     );
   }
