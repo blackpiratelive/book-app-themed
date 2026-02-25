@@ -7,6 +7,7 @@ import 'package:book_app_themed/state/app_controller.dart';
 import 'package:book_app_themed/utils/date_formatters.dart';
 import 'package:book_app_themed/widgets/book_cover.dart';
 import 'package:book_app_themed/widgets/section_card.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 
@@ -494,7 +495,6 @@ class BookDetailsPage extends StatelessWidget {
                           child: CachedNetworkImage(
                             imageUrl: book.coverUrl,
                             fit: BoxFit.cover,
-                            cacheManager: bookCoverCacheManager,
                             errorWidget: (context, url, err) =>
                                 Container(color: CupertinoColors.systemGrey),
                           ),
@@ -677,10 +677,8 @@ class _ActionButtonsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = CupertinoTheme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
-
     final primaryBg = theme.primaryColor;
-    final primaryFg = CupertinoColors.white;
+    const primaryFg = CupertinoColors.white;
 
     Widget renderStatusShelfButton() {
       return Container(
@@ -718,7 +716,7 @@ class _ActionButtonsRow extends StatelessWidget {
 
       return CupertinoButton(
         padding: EdgeInsets.zero,
-        minSize: 0,
+        minimumSize: Size.zero,
         onPressed: action,
         child: Container(
           height: 44,
@@ -749,7 +747,7 @@ class _ActionButtonsRow extends StatelessWidget {
     Widget renderDeleteButton() {
       return CupertinoButton(
         padding: EdgeInsets.zero,
-        minSize: 0,
+        minimumSize: Size.zero,
         onPressed: onDelete,
         child: Container(
           width: 44,
@@ -782,123 +780,6 @@ class _ActionButtonsRow extends StatelessWidget {
             const SizedBox(width: 8),
           ],
           renderDeleteButton(),
-        ],
-      ),
-    );
-  }
-}
-
-class _ReadingProgressStatusCard extends StatelessWidget {
-  const _ReadingProgressStatusCard({required this.progressPercent});
-
-  final int progressPercent;
-
-  @override
-  Widget build(BuildContext context) {
-    final brightness =
-        CupertinoTheme.of(context).brightness ?? Brightness.light;
-    final scheme = _statusScheme(BookStatus.reading, brightness);
-    final progress = (progressPercent.clamp(0, 100)) / 100.0;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: scheme.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Icon(CupertinoIcons.book, size: 16, color: scheme.foreground),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Reading',
-                  style: TextStyle(
-                    color: scheme.foreground,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-              Text(
-                '$progressPercent%',
-                style: TextStyle(
-                  color: scheme.foreground,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: Container(
-              height: 8,
-              color: scheme.foreground.withValues(alpha: 0.18),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: FractionallySizedBox(
-                  widthFactor: progress,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: scheme.foreground,
-                      borderRadius: BorderRadius.circular(999),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
-
-  final BookStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final brightness =
-        CupertinoTheme.of(context).brightness ?? Brightness.light;
-    final scheme = _statusScheme(status, brightness);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: scheme.background,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: scheme.border),
-      ),
-      child: Row(
-        children: <Widget>[
-          Icon(status.icon, size: 16, color: scheme.foreground),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              status.label,
-              style: TextStyle(
-                color: scheme.foreground,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-              ),
-            ),
-          ),
-          Text(
-            'Status',
-            style: TextStyle(
-              color: scheme.foreground.withValues(alpha: 0.8),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
         ],
       ),
     );
@@ -1421,38 +1302,5 @@ class _DetailTile extends StatelessWidget {
         ],
       ),
     );
-  }
-}
-
-({Color background, Color border, Color foreground}) _statusScheme(
-  BookStatus status,
-  Brightness brightness,
-) {
-  final isDark = brightness == Brightness.dark;
-  switch (status) {
-    case BookStatus.read:
-      return (
-        background: isDark ? const Color(0xFF173523) : const Color(0xFFE8F8EE),
-        border: isDark ? const Color(0xFF2E7D47) : const Color(0xFFA8E0B6),
-        foreground: isDark ? const Color(0xFF7CE3A0) : const Color(0xFF1E8E46),
-      );
-    case BookStatus.reading:
-      return (
-        background: isDark ? const Color(0xFF132A45) : const Color(0xFFEAF3FF),
-        border: isDark ? const Color(0xFF2D5F9D) : const Color(0xFFAECDF8),
-        foreground: isDark ? const Color(0xFF8CC2FF) : const Color(0xFF1768C5),
-      );
-    case BookStatus.readingList:
-      return (
-        background: isDark ? const Color(0xFF3A2E12) : const Color(0xFFF7EFD8),
-        border: isDark ? const Color(0xFF7C6420) : const Color(0xFFE7D091),
-        foreground: isDark ? const Color(0xFFF2CF67) : const Color(0xFF9A6A00),
-      );
-    case BookStatus.abandoned:
-      return (
-        background: isDark ? const Color(0xFF3A1715) : const Color(0xFFFFECE9),
-        border: isDark ? const Color(0xFF8A3C35) : const Color(0xFFF5B0A8),
-        foreground: isDark ? const Color(0xFFFF9E91) : const Color(0xFFD24434),
-      );
   }
 }
