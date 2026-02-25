@@ -237,6 +237,16 @@ class HomePage extends StatelessWidget {
                     ],
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: CupertinoSearchTextField(
+                    onChanged: controller.setSearchQuery,
+                    placeholder: 'Search library',
+                  ),
+                ),
                 Expanded(
                   child: CustomScrollView(
                     physics: const BouncingScrollPhysics(
@@ -246,6 +256,42 @@ class HomePage extends StatelessWidget {
                       CupertinoSliverRefreshControl(
                         onRefresh: () => _refreshFromBackend(context),
                       ),
+                      if (controller.searchQuery.trim().isNotEmpty)
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                            child: CupertinoButton(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              color: CupertinoColors.systemBackground
+                                  .resolveFrom(context),
+                              borderRadius: BorderRadius.circular(12),
+                              onPressed: () {
+                                Navigator.of(context).push<void>(
+                                  CupertinoPageRoute<void>(
+                                    builder: (_) => DirectBookSearchPage(
+                                      controller: controller,
+                                      initialQuery: controller.searchQuery,
+                                    ),
+                                  ),
+                                );
+                              },
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: <Widget>[
+                                  const Icon(CupertinoIcons.search, size: 18),
+                                  const SizedBox(width: 8),
+                                  Flexible(
+                                    child: Text(
+                                      'Search online for "${controller.searchQuery}"',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
                       if (controller.isLoading)
                         const SliverFillRemaining(
                           hasScrollBody: false,

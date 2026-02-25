@@ -112,6 +112,7 @@ class AppController extends ChangeNotifier {
   String? _lastBackendSyncAtIso;
   bool _isBackendBusy = false;
   String? _lastBackendStatusMessage;
+  String _searchQuery = '';
 
   bool get isLoading => _isLoading;
   bool get isDarkMode => _isDarkMode;
@@ -150,9 +151,32 @@ class AppController extends ChangeNotifier {
   bool get isBackendBusy => _isBackendBusy;
   String? get lastBackendStatusMessage => _lastBackendStatusMessage;
 
-  List<BookItem> get visibleBooks => _books
-      .where((book) => book.status == _selectedShelf)
-      .toList(growable: false);
+  String get searchQuery => _searchQuery;
+
+  List<BookItem> get visibleBooks {
+    final query = _searchQuery.trim().toLowerCase();
+    final shelfBooks = _books.where((book) => book.status == _selectedShelf);
+
+    if (query.isEmpty) {
+      return shelfBooks.toList(growable: false);
+    }
+
+    return _books
+        .where((book) {
+          if (book.title.toLowerCase().contains(query)) return true;
+          if (book.author.toLowerCase().contains(query)) return true;
+          if (book.notes.toLowerCase().contains(query)) return true;
+          if ((book.startDateIso ?? '').toLowerCase().contains(query))
+            return true;
+          if ((book.endDateIso ?? '').toLowerCase().contains(query))
+            return true;
+          if (book.highlights.any((h) => h.toLowerCase().contains(query))) {
+            return true;
+          }
+          return false;
+        })
+        .toList(growable: false);
+  }
 
   CupertinoThemeData themeDataFor(Brightness systemBrightness) =>
       CupertinoThemeData(
@@ -210,6 +234,12 @@ class AppController extends ChangeNotifier {
   void setSelectedShelf(BookStatus status) {
     if (_selectedShelf == status) return;
     _selectedShelf = status;
+    notifyListeners();
+  }
+
+  void setSearchQuery(String query) {
+    if (_searchQuery == query) return;
+    _searchQuery = query;
     notifyListeners();
   }
 

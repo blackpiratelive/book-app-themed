@@ -6,9 +6,14 @@ import 'package:book_app_themed/widgets/section_card.dart';
 import 'package:flutter/cupertino.dart';
 
 class DirectBookSearchPage extends StatefulWidget {
-  const DirectBookSearchPage({super.key, required this.controller});
+  const DirectBookSearchPage({
+    super.key,
+    required this.controller,
+    this.initialQuery,
+  });
 
   final AppController controller;
+  final String? initialQuery;
 
   @override
   State<DirectBookSearchPage> createState() => _DirectBookSearchPageState();
@@ -26,7 +31,12 @@ class _DirectBookSearchPageState extends State<DirectBookSearchPage> {
   @override
   void initState() {
     super.initState();
-    _queryController = TextEditingController();
+    _queryController = TextEditingController(text: widget.initialQuery);
+    if (widget.initialQuery != null && widget.initialQuery!.trim().isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _runSearch();
+      });
+    }
   }
 
   @override
