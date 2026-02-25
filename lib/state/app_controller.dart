@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:book_app_themed/models/book.dart';
+import 'package:book_app_themed/services/android_home_widget_bridge.dart';
 import 'package:book_app_themed/services/book_discovery_service.dart';
 import 'package:book_app_themed/services/backend_api_service.dart';
 import 'package:book_app_themed/services/app_storage_service.dart';
@@ -217,6 +218,7 @@ class AppController extends ChangeNotifier {
     }
     _isLoading = false;
     notifyListeners();
+    unawaited(_refreshAndroidHomeWidgets());
 
     if (snapshot.backendApiUrl.trim().isEmpty) {
       unawaited(
@@ -395,7 +397,7 @@ class AppController extends ChangeNotifier {
     _books.insert(0, created);
     _selectedShelf = draft.status;
     notifyListeners();
-    await _storage.saveBooks(_books);
+    await _saveBooksAndRefreshWidgets();
     if (usesAccountBackend) {
       try {
         await _syncBookToActiveBackend(created);
@@ -456,6 +458,7 @@ class AppController extends ChangeNotifier {
     final snapshot = _storage.snapshotFromJson(imported.snapshotJson);
     _applySnapshot(snapshot);
     await _storage.saveSnapshot(snapshot);
+    await _refreshAndroidHomeWidgets();
   }
 
   Future<void> updateBook(String bookId, BookDraft draft) async {
@@ -467,7 +470,7 @@ class AppController extends ChangeNotifier {
         : updated;
     _books[index] = prepared;
     notifyListeners();
-    await _storage.saveBooks(_books);
+    await _saveBooksAndRefreshWidgets();
     if (usesAccountBackend) {
       try {
         final saved = await _backendApi.upsertBookV1(
@@ -481,7 +484,7 @@ class AppController extends ChangeNotifier {
         _lastBackendStatusMessage =
             'Updated "${saved.title}" on account backend.';
         notifyListeners();
-        await _storage.saveBooks(_books);
+        await _saveBooksAndRefreshWidgets();
         await _storage.saveBackendSyncState(
           backendCachePrimed: _backendCachePrimed,
           hasLocalBookChanges: false,
@@ -525,7 +528,7 @@ class AppController extends ChangeNotifier {
     final deletedBook = bookById(bookId);
     _books.removeWhere((b) => b.id == bookId);
     notifyListeners();
-    await _storage.saveBooks(_books);
+    await _saveBooksAndRefreshWidgets();
     if (usesAccountBackend && deletedBook != null) {
       try {
         await _backendApi.deleteBookV1(
@@ -567,7 +570,7 @@ class AppController extends ChangeNotifier {
     final updated = _books[index].copyWith(highlights: cleanedHighlights);
     _books[index] = updated;
     notifyListeners();
-    await _storage.saveBooks(_books);
+    await _saveBooksAndRefreshWidgets();
 
     if (usesAccountBackend) {
       try {
@@ -582,7 +585,7 @@ class AppController extends ChangeNotifier {
         _lastBackendStatusMessage =
             'Updated highlights for "${synced.title}" on account backend.';
         notifyListeners();
-        await _storage.saveBooks(_books);
+        await _saveBooksAndRefreshWidgets();
         await _storage.saveBackendSyncState(
           backendCachePrimed: _backendCachePrimed,
           hasLocalBookChanges: false,
@@ -638,7 +641,7 @@ class AppController extends ChangeNotifier {
         .toList(growable: false);
     _books[index] = _books[index].copyWith(highlights: cleanedHighlights);
     notifyListeners();
-    await _storage.saveBooks(_books);
+    await _saveBooksAndRefreshWidgets();
     await _markLocalBookChanges();
   }
 
@@ -652,7 +655,7 @@ class AppController extends ChangeNotifier {
     final clamped = progressPercent.clamp(0, 100).toInt();
     _books[index] = _books[index].copyWith(progressPercent: clamped);
     notifyListeners();
-    await _storage.saveBooks(_books);
+    await _saveBooksAndRefreshWidgets();
     await _markLocalBookChanges();
   }
 
@@ -769,7 +772,7 @@ class AppController extends ChangeNotifier {
     _backendCachePrimed = true;
     _hasLocalBookChanges = false;
     notifyListeners();
-    await _storage.saveBooks(_books);
+    await _saveBooksAndRefreshWidgets();
     await _storage.saveBackendSyncState(
       backendCachePrimed: _backendCachePrimed,
       hasLocalBookChanges: false,
@@ -880,6 +883,15 @@ class AppController extends ChangeNotifier {
     );
   }
 
+  Future<void> _saveBooksAndRefreshWidgets() async {
+    await _storage.saveBooks(_books);
+    await _refreshAndroidHomeWidgets();
+  }
+
+  Future<void> _refreshAndroidHomeWidgets() {
+    return AndroidHomeWidgetBridge.refreshReadingWidget();
+  }
+
   void _setBackendBusy(bool value, {String? message}) {
     _isBackendBusy = value;
     if (message != null) {
@@ -920,7 +932,7 @@ class AppController extends ChangeNotifier {
     _lastBackendSyncAtIso = DateTime.now().toIso8601String();
     notifyListeners();
 
-    await _storage.saveBooks(_books);
+    await _saveBooksAndRefreshWidgets();
     await _storage.saveBackendSyncState(
       backendCachePrimed: true,
       hasLocalBookChanges: false,
@@ -1141,7 +1153,7 @@ class AppController extends ChangeNotifier {
         _lastBackendStatusMessage =
             'Saved "${saved.title}" to account backend.';
         notifyListeners();
-        await _storage.saveBooks(_books);
+        await _saveBooksAndRefreshWidgets();
         await _storage.saveBackendSyncState(
           backendCachePrimed: _backendCachePrimed,
           hasLocalBookChanges: false,

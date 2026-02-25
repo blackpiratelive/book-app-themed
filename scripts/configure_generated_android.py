@@ -6,6 +6,7 @@ from pathlib import Path
 
 TARGET_PACKAGE = "com.blackpiratex.book"
 TARGET_APP_LABEL = "BlackPirateX Book tracker"
+TEMPLATES_DIR = Path(__file__).resolve().parent / "android_widget_templates"
 
 
 def main() -> None:
@@ -14,6 +15,7 @@ def main() -> None:
     patch_android_root_gradle()
     patch_gradle()
     patch_main_activity()
+    install_android_home_widget_templates()
 
 
 def patch_manifest() -> None:
@@ -39,7 +41,32 @@ def patch_manifest() -> None:
         count=1,
     )
 
+    text = _inject_widget_manifest_entries(text)
     manifest.write_text(text)
+
+
+def _inject_widget_manifest_entries(text: str) -> str:
+    if "ReadingBooksWidgetProvider" in text and "ReadingBooksWidgetRemoteViewsService" in text:
+        return text
+
+    widget_block = f"""
+        <receiver
+            android:name=\"{TARGET_PACKAGE}.ReadingBooksWidgetProvider\"
+            android:exported=\"true\">
+            <intent-filter>
+                <action android:name=\"android.appwidget.action.APPWIDGET_UPDATE\" />
+            </intent-filter>
+            <meta-data
+                android:name=\"android.appwidget.provider\"
+                android:resource=\"@xml/reading_books_widget_info\" />
+        </receiver>
+
+        <service
+            android:name=\"{TARGET_PACKAGE}.ReadingBooksWidgetRemoteViewsService\"
+            android:exported=\"false\"
+            android:permission=\"android.permission.BIND_REMOTEVIEWS\" />
+"""
+    return text.replace("</application>", widget_block + "    </application>", 1)
 
 
 def patch_gradle() -> None:
@@ -93,22 +120,18 @@ def patch_android_root_gradle() -> None:
         text = path.read_text()
         if "com.google.gms:google-services" in text:
             return
-        if path.suffix == ".kts":
-            marker = "dependencies {"
-            if marker in text:
+        marker = "dependencies {"
+        if marker in text:
+            if path.suffix == ".kts":
                 text = text.replace(
                     marker,
-                    marker
-                    + '\n        classpath("com.google.gms:google-services:4.4.2")',
+                    marker + '\n        classpath("com.google.gms:google-services:4.4.2")',
                     1,
                 )
-        else:
-            marker = "dependencies {"
-            if marker in text:
+            else:
                 text = text.replace(
                     marker,
-                    marker
-                    + "\n        classpath 'com.google.gms:google-services:4.4.2'",
+                    marker + "\n        classpath 'com.google.gms:google-services:4.4.2'",
                     1,
                 )
         path.write_text(text)
@@ -121,7 +144,7 @@ def patch_kotlin_gradle_google_services_plugin(text: str) -> str:
     plugin_id = 'id("com.google.gms.google-services")'
     if re.search(r"plugins\s*\{", text):
         return re.sub(r"(plugins\s*\{\s*\n)", rf"\1    {plugin_id}\n", text, count=1)
-    return text + f'\napply(plugin = "com.google.gms.google-services")\n'
+    return text + '\napply(plugin = "com.google.gms.google-services")\n'
 
 
 def patch_groovy_gradle_google_services_plugin(text: str) -> str:
@@ -204,26 +227,113 @@ def patch_main_activity() -> None:
         if not base.exists():
             continue
         for file in base.rglob("MainActivity.*"):
-            text = file.read_text()
-            if not re.search(r"^package\s+[\w.]+", text, flags=re.MULTILINE):
-                continue
-            text = re.sub(
-                r"^package\s+[\w.]+",
-                f"package {TARGET_PACKAGE}",
-                text,
-                count=1,
-                flags=re.MULTILINE,
-            )
-
-            ext = file.suffix
+            ext = file.suffix.lower()
             target_dir = base.joinpath(*TARGET_PACKAGE.split("."))
             target_dir.mkdir(parents=True, exist_ok=True)
             target_file = target_dir / f"MainActivity{ext}"
-            target_file.write_text(text)
 
-            if file.resolve() != target_file.resolve():
+            if ext == ".kt":
+                target_file.write_text(_main_activity_kotlin_source())
+            elif ext == ".java":
+                target_file.write_text(_main_activity_java_source())
+            else:
+                continue
+
+            if file.resolve() != target_file.resolve() and file.exists():
                 file.unlink()
             return
+
+
+def _main_activity_kotlin_source() -> str:
+    return f"""package {TARGET_PACKAGE}
+
+import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
+
+class MainActivity : FlutterActivity() {{
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {{
+        super.configureFlutterEngine(flutterEngine)
+        MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            \"com.blackpiratex.book/android_widget\",
+        ).setMethodCallHandler {{ call, result ->
+            when (call.method) {{
+                \"refreshReadingWidget\" -> {{
+                    ReadingBooksWidgetProvider.refreshAllWidgets(applicationContext)
+                    result.success(true)
+                }}
+                else -> result.notImplemented()
+            }}
+        }}
+    }}
+}}
+"""
+
+
+def _main_activity_java_source() -> str:
+    return f"""package {TARGET_PACKAGE};
+
+import io.flutter.embedding.android.FlutterActivity;
+import io.flutter.embedding.engine.FlutterEngine;
+import io.flutter.plugin.common.MethodChannel;
+
+public class MainActivity extends FlutterActivity {{
+  @Override
+  public void configureFlutterEngine(FlutterEngine flutterEngine) {{
+    super.configureFlutterEngine(flutterEngine);
+    new MethodChannel(flutterEngine.getDartExecutor().getBinaryMessenger(), "com.blackpiratex.book/android_widget")
+        .setMethodCallHandler((call, result) -> {{
+          if ("refreshReadingWidget".equals(call.method)) {{
+            ReadingBooksWidgetProvider.Companion.refreshAllWidgets(getApplicationContext());
+            result.success(true);
+          }} else {{
+            result.notImplemented();
+          }}
+        }});
+  }}
+}}
+"""
+
+
+def install_android_home_widget_templates() -> None:
+    if not TEMPLATES_DIR.exists():
+        return
+
+    _copy_template_files(
+        TEMPLATES_DIR / "res",
+        Path("android/app/src/main/res"),
+        placeholder_map={"__PACKAGE__": TARGET_PACKAGE},
+    )
+
+    kotlin_base = Path("android/app/src/main/kotlin")
+    kotlin_target = kotlin_base.joinpath(*TARGET_PACKAGE.split("."))
+    kotlin_target.mkdir(parents=True, exist_ok=True)
+    _copy_template_files(
+        TEMPLATES_DIR / "kotlin",
+        kotlin_target,
+        placeholder_map={"__PACKAGE__": TARGET_PACKAGE},
+    )
+
+
+def _copy_template_files(
+    source_dir: Path,
+    target_dir: Path,
+    *,
+    placeholder_map: dict[str, str],
+) -> None:
+    if not source_dir.exists():
+        return
+    for source in source_dir.rglob("*"):
+        if not source.is_file():
+            continue
+        relative = source.relative_to(source_dir)
+        destination = target_dir / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        content = source.read_text()
+        for key, value in placeholder_map.items():
+            content = content.replace(key, value)
+        destination.write_text(content)
 
 
 def _inject_plugin_line_into_plugins_block(text: str, plugin_line: str) -> str:

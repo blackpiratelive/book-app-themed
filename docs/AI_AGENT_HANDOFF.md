@@ -588,6 +588,8 @@ Change home screen layout:
 
 ## Notes for Future AI Agents
 
+- Android home screen widget support was added via generated-Android patching (`scripts/configure_generated_android.py`) and widget templates under `scripts/android_widget_templates/`. The widget reads currently-reading books from Flutter `SharedPreferences` and allows progress changes from the home screen with `+/-` controls (RemoteViews-friendly alternative to a true seekbar slider).
+- Flutter app-side widget refresh is triggered from `AppController` through `lib/services/android_home_widget_bridge.dart` after book list changes/load, but widget progress edits update shared prefs directly on Android and may not live-refresh an already-open Flutter screen until the app reloads state.
 - Book details page (`lib/pages/book_details_page.dart`) was visually redesigned to a more card-heavy hero layout (standard nav bar + blurred cover backdrop, larger cover art, stronger blue action pills, shadowed section cards) to match the user's reference screenshot style while keeping existing actions/highlights behavior.
 - If CI analyzer fails, prioritize compatibility fixes for Flutter SDK API changes (this repo has already seen changes like `minimumSize` and `withValues(alpha: ...)`).
 - Before reintroducing any workflow file, check for duplicates under `.github/workflows/`.
