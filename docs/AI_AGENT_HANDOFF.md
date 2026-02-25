@@ -234,13 +234,17 @@ Features:
 - Successful add inserts/updates the local cached list immediately and switches shelf to `Reading List`
 - Direct search (OpenLibrary + Google Books) adds books locally only (guest/local mode friendly) and preserves remote cover URLs from those APIs on the local book record
 
-### 9. Home Pull-To-Refresh (Backend Diff Sync)
+### 9. Home Screen (`HomePage`)
 
-Implemented in:
-- `lib/pages/home_page.dart`
-- `lib/state/app_controller.dart`
+Implemented in `lib/pages/home_page.dart`.
 
-Behavior:
+Features:
+- Animated greeting based on time of day
+- Full-width local search bar across titles, authors, descriptions, highlights, and dates
+- Option to bridge active search queries to OpenLibrary/Google Books
+- `FloatingStatusBar` at bottom (Reading, Read, Watchlist, Abandoned)
+- Current shelf persistence in `AppController` session (not to disk)
+- Empty state with shelf-specific descriptions
 - Home list supports pull-to-refresh (`CupertinoSliverRefreshControl`)
 - Pull refresh fetches `/api/books` and compares against local cached books
 - Only applies and saves the fetched payload if backend data changed
