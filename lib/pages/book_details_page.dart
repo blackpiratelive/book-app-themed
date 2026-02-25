@@ -695,7 +695,7 @@ class _ActionButtonsRow extends StatelessWidget {
             const SizedBox(width: 8),
             Text(
               book.status.label,
-              style: TextStyle(
+              style: const TextStyle(
                 color: primaryFg,
                 fontWeight: FontWeight.w700,
                 fontSize: 15,
@@ -732,7 +732,7 @@ class _ActionButtonsRow extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 label,
-                style: TextStyle(
+                style: const TextStyle(
                   color: primaryFg,
                   fontWeight: FontWeight.w600,
                   fontSize: 15,
