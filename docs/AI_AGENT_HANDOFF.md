@@ -67,8 +67,9 @@ Planning / build specs:
 - `docs/API_AGENT_BACKEND_BUILD_SPEC.md` (future backend implementation spec for AI agents; Firebase Auth + Turso + full sync scope)
 
 CI / automation:
-- `.github/workflows/android-build.yml`: Flutter analyze + signed Android release APK + AAB builds, uploads `app-release-apk` and `app-release-aab` artifacts
-- `.github/workflows/prerelease-on-success.yml`: creates a GitHub prerelease automatically after a successful `Android APK Build` run on `push` to `main`, and attaches both APK and AAB artifacts
+- `.github/workflows/android-build.yml`: Flutter analyze + signed Android release APK build, uploads `app-release-apk` artifact
+- `.github/workflows/prerelease-on-success.yml`: creates a GitHub prerelease automatically after a successful `Android APK Build` run on `push` to `main`, and attaches the built APK artifact
+- `.github/workflows/android-aab-prerelease-manual.yml`: manual (`workflow_dispatch`) signed Android AAB build + GitHub prerelease creation, attaches `app-release.aab` for Play Store uploads
 
 ## Features Currently Implemented
 

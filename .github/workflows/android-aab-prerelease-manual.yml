@@ -1,12 +1,17 @@
-name: Android APK Build
+name: Android AAB Prerelease (Manual)
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
+concurrency:
+  group: aab-prerelease-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  build-android:
+  build-aab-prerelease:
     runs-on: ubuntu-latest
 
     steps:
@@ -66,23 +71,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/ci-release.jks
-          echo "Keystore file created:"
           ls -lh android/app/ci-release.jks
-
-      - name: Verify keystore and alias (debug)
-        shell: bash
-        env:
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          echo "Listing keystore entry for alias '$ANDROID_KEY_ALIAS'..."
-          keytool -list -v \
-            -keystore android/app/ci-release.jks \
-            -alias "$ANDROID_KEY_ALIAS" \
-            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
-            -keypass "$ANDROID_KEY_PASSWORD" | sed -n '1,40p'
 
       - name: Install SVG renderer
         run: |
@@ -113,53 +102,54 @@ jobs:
             rsvg-convert -w "$size" -h "$size" "$ICON_SVG" -o "$file"
           done
 
-      - name: Inspect generated Android signing config (debug)
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -f android/app/build.gradle.kts ]; then
-            echo "Using android/app/build.gradle.kts"
-            sed -n '/CI signing config (injected)/,/buildTypes {/p' android/app/build.gradle.kts
-            grep -n 'signingConfig = signingConfigs.getByName(\"release\")' android/app/build.gradle.kts
-          elif [ -f android/app/build.gradle ]; then
-            echo "Using android/app/build.gradle"
-            sed -n '/CI signing config (injected)/,/buildTypes {/p' android/app/build.gradle
-            grep -n 'signingConfig.*signingConfigs.release' android/app/build.gradle
-          else
-            echo "::error::No Gradle app module build file found"
-            exit 1
-          fi
-
       - name: Install dependencies
         run: flutter pub get
 
       - name: Analyze
         run: flutter analyze
 
-      - name: Build release APK
-        run: flutter build apk --release
+      - name: Build release AAB
+        run: flutter build appbundle --release
         env:
           ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/app/ci-release.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
 
-      - name: Signing diagnostics (on failure)
-        if: failure()
-        shell: bash
-        run: |
-          set +e
-          echo "android/app contents:"
-          ls -lah android/app
-          echo
-          echo "Keystore file details:"
-          ls -lh android/app/ci-release.jks
-          echo
-          echo "Signing-related lines from Gradle file:"
-          grep -nE 'signingConfigs|signingConfig|ANDROID_KEYSTORE|ANDROID_KEY_ALIAS' android/app/build.gradle* || true
-
-      - name: Upload APK artifact
+      - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: app-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          short_sha="$(printf '%s' "${GITHUB_SHA}" | cut -c1-7)"
+          tag="pre-aab-${GITHUB_RUN_NUMBER}-${short_sha}"
+          title="AAB Prerelease #${GITHUB_RUN_NUMBER} (${short_sha})"
+          {
+            echo "tag=$tag"
+            echo "title=$title"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.title }}
+          prerelease: true
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          body: |
+            Auto-generated manual AAB prerelease.
+
+            Source workflow: `${{ github.workflow }}`
+            Run number: `${{ github.run_number }}`
+            Commit: `${{ github.sha }}`
+          files: |
+            build/app/outputs/bundle/release/app-release.aab
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

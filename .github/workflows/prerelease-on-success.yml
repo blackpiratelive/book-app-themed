@@ -32,15 +32,6 @@ jobs:
           path: dist
           if_no_artifact_found: fail
 
-      - name: Download AAB artifact from successful build run
-        uses: dawidd6/action-download-artifact@v6
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ github.event.workflow_run.id }}
-          name: app-release-aab
-          path: dist
-          if_no_artifact_found: fail
-
       - name: Prepare release metadata
         id: meta
         shell: bash
@@ -70,6 +61,5 @@ jobs:
             Commit: `${{ github.event.workflow_run.head_sha }}`
           files: |
             dist/**/app-release.apk
-            dist/**/app-release.aab
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
