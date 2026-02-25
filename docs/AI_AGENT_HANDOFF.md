@@ -296,6 +296,7 @@ Behavior:
 - Google sign-in also authenticates through Firebase and uses the same backend v1 bootstrap flow
 - Signup sends a Firebase email verification email for unverified users
 - Verification and password-reset emails are sent with explicit Firebase `ActionCodeSettings` using the project's `https://<projectId>.firebaseapp.com/__/auth/action` URL and Android package `com.blackpiratex.book` to avoid silent email-action delivery issues caused by missing/invalid continue URL defaults
+- Unverified users can manually request a new verification email from the `SettingsPage` by tapping the "Verify Now" button next to their account status.
 - FlutterFire compatibility note: use `ActionCodeSettings(androidInstallApp: ...)` (not `androidInstallIfNotAvailable`) with the current `firebase_auth` version in this repo
 - Hidden guest mode trigger: long-press the app icon on the auth gate (visible guest button removed)
 - Auth gate UI copy was simplified (technical backend text removed); login mode now includes a `Forgot password?` link (Firebase reset email)
