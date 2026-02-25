@@ -1362,12 +1362,10 @@ class _DetailsSectionCard extends StatelessWidget {
   const _DetailsSectionCard({
     required this.title,
     required this.child,
-    this.padding = const EdgeInsets.all(14),
   });
 
   final String title;
   final Widget child;
-  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
@@ -1393,7 +1391,7 @@ class _DetailsSectionCard extends StatelessWidget {
         ],
       ),
       child: Padding(
-        padding: padding,
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
