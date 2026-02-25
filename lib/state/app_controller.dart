@@ -279,6 +279,20 @@ class AppController extends ChangeNotifier {
     return _firebaseAuth.sendPasswordResetEmail(email: email);
   }
 
+  Future<void> sendVerificationEmail() async {
+    try {
+      await _firebaseAuth.sendEmailVerification();
+      _lastBackendStatusMessage = 'Verification email sent. Check your inbox.';
+      notifyListeners();
+    } on AppFirebaseAuthException catch (e) {
+      _lastBackendStatusMessage = e.message;
+      notifyListeners();
+    } catch (_) {
+      _lastBackendStatusMessage = 'Failed to send verification email.';
+      notifyListeners();
+    }
+  }
+
   Future<void> signUpWithEmailPassword({
     required String displayName,
     required String email,

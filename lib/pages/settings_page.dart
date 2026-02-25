@@ -821,7 +821,14 @@ class _AccountSummaryCard extends StatelessWidget {
                 ),
               ),
               if (isLoggedIn)
-                _VerificationBadge(verified: controller.authEmailVerified),
+                _VerificationBadge(
+                  verified: controller.authEmailVerified,
+                  onVerifyTap: controller.authEmailVerified
+                      ? null
+                      : () async {
+                          await controller.sendVerificationEmail();
+                        },
+                ),
             ],
           ),
           if (email.isNotEmpty) ...<Widget>[
@@ -872,17 +879,39 @@ class _AccountSummaryCard extends StatelessWidget {
   }
 }
 
-class _VerificationBadge extends StatelessWidget {
-  const _VerificationBadge({required this.verified});
+class _VerificationBadge extends StatefulWidget {
+  const _VerificationBadge({required this.verified, this.onVerifyTap});
 
   final bool verified;
+  final VoidCallback? onVerifyTap;
+
+  @override
+  State<_VerificationBadge> createState() => _VerificationBadgeState();
+}
+
+class _VerificationBadgeState extends State<_VerificationBadge> {
+  bool _isBusy = false;
+
+  Future<void> _handleTap() async {
+    if (widget.onVerifyTap == null || _isBusy) return;
+    setState(() => _isBusy = true);
+    try {
+      widget.onVerifyTap!();
+    } finally {
+      if (mounted) {
+        setState(() => _isBusy = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final verified = widget.verified;
     final color = verified
         ? CupertinoColors.activeGreen
         : CupertinoColors.systemOrange;
-    return Container(
+
+    final badge = Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
@@ -910,6 +939,38 @@ class _VerificationBadge extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    if (verified || widget.onVerifyTap == null) {
+      return badge;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: <Widget>[
+        badge,
+        const SizedBox(height: 6),
+        CupertinoButton(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          color: CupertinoColors.systemOrange.resolveFrom(context),
+          minSize: 0,
+          borderRadius: BorderRadius.circular(8),
+          onPressed: _isBusy ? null : _handleTap,
+          child: _isBusy
+              ? const CupertinoActivityIndicator(
+                  color: CupertinoColors.white,
+                  radius: 8,
+                )
+              : const Text(
+                  'Verify Now',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: CupertinoColors.white,
+                  ),
+                ),
+        ),
+      ],
     );
   }
 }

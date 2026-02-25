@@ -155,6 +155,24 @@ class FirebaseAuthService {
     }
   }
 
+  Future<void> sendEmailVerification() async {
+    final auth = await _auth();
+    final user = auth.currentUser;
+    if (user == null) {
+      throw const AppFirebaseAuthException('No user is currently signed in.');
+    }
+    try {
+      final actionCodeSettings = _defaultEmailActionSettings();
+      if (actionCodeSettings == null) {
+        await user.sendEmailVerification();
+      } else {
+        await user.sendEmailVerification(actionCodeSettings);
+      }
+    } on FirebaseAuthException catch (e) {
+      throw AppFirebaseAuthException(_messageForFirebaseAuthError(e));
+    }
+  }
+
   Future<FirebaseAuth> _auth() async {
     await _ensureInitialized();
     return FirebaseAuth.instance;
