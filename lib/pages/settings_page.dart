@@ -953,7 +953,7 @@ class _VerificationBadgeState extends State<_VerificationBadge> {
         CupertinoButton(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
           color: CupertinoColors.systemOrange.resolveFrom(context),
-          minSize: 0,
+          minimumSize: Size.zero,
           borderRadius: BorderRadius.circular(8),
           onPressed: _isBusy ? null : _handleTap,
           child: _isBusy
