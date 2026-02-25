@@ -171,7 +171,7 @@ class FirebaseAuthService {
       url: 'https://$projectId.firebaseapp.com/__/auth/action',
       handleCodeInApp: false,
       androidPackageName: _androidPackageName,
-      androidInstallIfNotAvailable: false,
+      androidInstallApp: false,
     );
   }
 
