@@ -44,7 +44,7 @@ class _BookTrackerAppState extends State<BookTrackerApp>
       builder: (context, _) {
         return CupertinoApp(
           key: ValueKey<String>(
-            'session:${widget.controller.authSessionType.storageValue}|onboarding:${widget.controller.hasSeenOnboarding}|theme:${widget.controller.themeMode.storageValue}|pb:${_platformBrightness.name}',
+            'session:${widget.controller.authSessionType.storageValue}|onboarding:${widget.controller.hasSeenOnboarding}',
           ),
           debugShowCheckedModeBanner: false,
           title: 'BlackPirateX Book tracker',

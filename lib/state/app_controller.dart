@@ -166,10 +166,12 @@ class AppController extends ChangeNotifier {
           if (book.title.toLowerCase().contains(query)) return true;
           if (book.author.toLowerCase().contains(query)) return true;
           if (book.notes.toLowerCase().contains(query)) return true;
-          if ((book.startDateIso ?? '').toLowerCase().contains(query))
+          if ((book.startDateIso ?? '').toLowerCase().contains(query)) {
             return true;
-          if ((book.endDateIso ?? '').toLowerCase().contains(query))
+          }
+          if ((book.endDateIso ?? '').toLowerCase().contains(query)) {
             return true;
+          }
           if (book.highlights.any((h) => h.toLowerCase().contains(query))) {
             return true;
           }
@@ -303,6 +305,31 @@ class AppController extends ChangeNotifier {
   Future<void> loginWithGoogle() async {
     final session = await _firebaseAuth.signInWithGoogle();
     await _completeAccountAuthFromFirebase(session);
+  }
+
+  Future<void> updateProfile({
+    required String displayName,
+    required String email,
+  }) async {
+    _setBackendBusy(true, message: 'Updating profile...');
+    try {
+      final session = await _firebaseAuth.updateProfile(
+        displayName: displayName,
+        email: email,
+      );
+      await _completeAccountAuthFromFirebase(session);
+      _setBackendBusy(
+        false,
+        message:
+            'Profile updated. If you changed your email, check your inbox to verify it.',
+      );
+    } catch (e) {
+      final msg = e is AppFirebaseAuthException
+          ? e.message
+          : 'Failed to update profile.';
+      _setBackendBusy(false, message: msg);
+      throw AppFirebaseAuthException(msg);
+    }
   }
 
   Future<void> sendPasswordResetEmail(String email) {

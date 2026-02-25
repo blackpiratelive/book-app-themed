@@ -854,6 +854,22 @@ class _AccountSummaryCard extends StatelessWidget {
               ),
             ),
           ],
+          if (isLoggedIn) ...<Widget>[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: CupertinoButton(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                color: CupertinoColors.tertiarySystemFill.resolveFrom(context),
+                borderRadius: BorderRadius.circular(12),
+                onPressed: () => _showEditProfileDialog(context),
+                child: Text(
+                  'Edit Profile',
+                  style: TextStyle(color: label, fontWeight: FontWeight.w600),
+                ),
+              ),
+            ),
+          ],
           if (onLogout != null) ...<Widget>[
             const SizedBox(height: 12),
             SizedBox(
@@ -876,6 +892,71 @@ class _AccountSummaryCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _showEditProfileDialog(BuildContext context) async {
+    final nameController = TextEditingController(
+      text: controller.authDisplayName,
+    );
+    final emailController = TextEditingController(text: controller.authEmail);
+    var name = controller.authDisplayName;
+    var email = controller.authEmail;
+
+    final result = await showCupertinoDialog<bool>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return CupertinoAlertDialog(
+              title: const Text('Edit Profile'),
+              content: Padding(
+                padding: const EdgeInsets.only(top: 12),
+                child: Column(
+                  children: <Widget>[
+                    CupertinoTextField(
+                      controller: nameController,
+                      placeholder: 'Name',
+                      autocorrect: false,
+                      onChanged: (val) => setDialogState(() => name = val),
+                    ),
+                    const SizedBox(height: 8),
+                    CupertinoTextField(
+                      controller: emailController,
+                      placeholder: 'Email',
+                      keyboardType: TextInputType.emailAddress,
+                      autocorrect: false,
+                      onChanged: (val) => setDialogState(() => email = val),
+                    ),
+                  ],
+                ),
+              ),
+              actions: <Widget>[
+                CupertinoDialogAction(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                CupertinoDialogAction(
+                  isDefaultAction: true,
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Save'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    nameController.dispose();
+    emailController.dispose();
+
+    if (result == true) {
+      if (name.trim().isEmpty || email.trim().isEmpty) return;
+      await controller.updateProfile(
+        displayName: name.trim(),
+        email: email.trim(),
+      );
+    }
   }
 }
 

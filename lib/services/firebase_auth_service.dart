@@ -133,6 +133,45 @@ class FirebaseAuthService {
     }
   }
 
+  Future<FirebaseAuthSession> updateProfile({
+    String? displayName,
+    String? email,
+  }) async {
+    final auth = await _auth();
+    var user = auth.currentUser;
+    if (user == null) {
+      throw const AppFirebaseAuthException('No user is currently signed in.');
+    }
+
+    try {
+      bool needReload = false;
+      if (displayName != null && displayName.trim() != user.displayName) {
+        await user.updateDisplayName(displayName.trim());
+        needReload = true;
+      }
+
+      if (email != null) {
+        final newEmail = email.trim();
+        if (newEmail.isNotEmpty && newEmail != user.email) {
+          final actionCodeSettings = _defaultEmailActionSettings();
+          if (actionCodeSettings == null) {
+            await user.verifyBeforeUpdateEmail(newEmail);
+          } else {
+            await user.verifyBeforeUpdateEmail(newEmail, actionCodeSettings);
+          }
+        }
+      }
+
+      if (needReload) {
+        await user.reload();
+        user = auth.currentUser ?? user;
+      }
+      return await _sessionFromUser(user, forceRefresh: true);
+    } on FirebaseAuthException catch (e) {
+      throw AppFirebaseAuthException(_messageForFirebaseAuthError(e));
+    }
+  }
+
   Future<void> signOut() async {
     final auth = await _auth();
     try {
