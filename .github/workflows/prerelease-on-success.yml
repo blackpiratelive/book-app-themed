@@ -1,0 +1,65 @@
+name: GitHub Prerelease (Post Build)
+
+on:
+  workflow_run:
+    workflows: ["Android APK Build"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: prerelease-${{ github.event.workflow_run.id }}
+  cancel-in-progress: false
+
+jobs:
+  create-prerelease:
+    if: >
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download APK artifact from successful build run
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          run_id: ${{ github.event.workflow_run.id }}
+          name: app-release-apk
+          path: dist
+          if_no_artifact_found: fail
+
+      - name: Prepare release metadata
+        id: meta
+        shell: bash
+        run: |
+          set -euo pipefail
+          short_sha="$(printf '%s' "${{ github.event.workflow_run.head_sha }}" | cut -c1-7)"
+          tag="pre-main-run-${{ github.event.workflow_run.run_number }}-${short_sha}"
+          title="Prerelease build #${{ github.event.workflow_run.run_number }} (${short_sha})"
+          {
+            echo "tag=$tag"
+            echo "title=$title"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.title }}
+          prerelease: true
+          target_commitish: ${{ github.event.workflow_run.head_sha }}
+          generate_release_notes: true
+          body: |
+            Auto-generated prerelease from successful workflow run.
+
+            Source workflow: `${{ github.event.workflow_run.name }}`
+            Run number: `${{ github.event.workflow_run.run_number }}`
+            Commit: `${{ github.event.workflow_run.head_sha }}`
+          files: |
+            dist/**/app-release.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
