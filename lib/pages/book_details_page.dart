@@ -538,7 +538,7 @@ class BookDetailsPage extends StatelessWidget {
               CustomScrollView(
                 slivers: <Widget>[
                   SliverSafeArea(
-                    top: false,
+                    top: true,
                     sliver: SliverList(
                       delegate: SliverChildListDelegate(<Widget>[
                         const SizedBox(height: 14),
