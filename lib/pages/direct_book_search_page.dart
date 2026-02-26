@@ -21,6 +21,7 @@ class DirectBookSearchPage extends StatefulWidget {
 
 class _DirectBookSearchPageState extends State<DirectBookSearchPage> {
   late final TextEditingController _queryController;
+  late final FocusNode _queryFocusNode;
   final Set<String> _addedKeys = <String>{};
   List<ExternalBookSearchResult> _results = const <ExternalBookSearchResult>[];
   bool _isSearching = false;
@@ -32,6 +33,7 @@ class _DirectBookSearchPageState extends State<DirectBookSearchPage> {
   void initState() {
     super.initState();
     _queryController = TextEditingController(text: widget.initialQuery);
+    _queryFocusNode = FocusNode();
     if (widget.initialQuery != null && widget.initialQuery!.trim().isNotEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _runSearch();
@@ -42,10 +44,12 @@ class _DirectBookSearchPageState extends State<DirectBookSearchPage> {
   @override
   void dispose() {
     _queryController.dispose();
+    _queryFocusNode.dispose();
     super.dispose();
   }
 
   Future<void> _runSearch() async {
+    _queryFocusNode.unfocus();
     final query = _queryController.text.trim();
     if (query.isEmpty) {
       setState(() {
@@ -96,7 +100,7 @@ class _DirectBookSearchPageState extends State<DirectBookSearchPage> {
     setState(() {
       _addingKey = key;
       _statusMessage = widget.controller.usesAccountBackend
-          ? 'Adding "${result.title}" to $targetLabel and syncing account...'
+          ? 'Adding "${result.title}" to $targetLabel locally, then syncing in background...'
           : 'Adding "${result.title}" to $targetLabel locally...';
     });
     await widget.controller.addLocalBookFromDiscoveryResult(
@@ -108,7 +112,7 @@ class _DirectBookSearchPageState extends State<DirectBookSearchPage> {
       _addedKeys.add(key);
       _addingKey = null;
       _statusMessage = widget.controller.usesAccountBackend
-          ? 'Added "${result.title}" to $targetLabel and synced to account.'
+          ? 'Added "${result.title}" to $targetLabel locally. Backend sync is running in the background.'
           : 'Added "${result.title}" to $targetLabel (local).';
     });
   }
@@ -132,9 +136,11 @@ class _DirectBookSearchPageState extends State<DirectBookSearchPage> {
                 children: <Widget>[
                   CupertinoTextField(
                     controller: _queryController,
+                    focusNode: _queryFocusNode,
                     placeholder: 'Search by title or author',
                     textInputAction: TextInputAction.search,
                     onSubmitted: (_) => _runSearch(),
+                    onTapOutside: (_) => _queryFocusNode.unfocus(),
                     autocorrect: false,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,

@@ -399,14 +399,18 @@ class AppController extends ChangeNotifier {
     notifyListeners();
     await _saveBooksAndRefreshWidgets();
     if (usesAccountBackend) {
-      try {
-        await _syncBookToActiveBackend(created);
-      } on BackendApiException {
-        // Local save already completed; keep app usable and sync later.
-      }
+      unawaited(_syncAddedBookToBackendInBackground(created));
       return;
     }
     await _markLocalBookChanges();
+  }
+
+  Future<void> _syncAddedBookToBackendInBackground(BookItem book) async {
+    try {
+      await _syncBookToActiveBackend(book);
+    } on BackendApiException {
+      // Local save already completed; keep app usable and sync later.
+    }
   }
 
   Future<String?> pickAndStoreLocalCoverImage() {

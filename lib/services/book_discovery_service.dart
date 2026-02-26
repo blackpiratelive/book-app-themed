@@ -52,12 +52,37 @@ class BookDiscoveryService {
     final q = query.trim();
     if (q.isEmpty) return const <ExternalBookSearchResult>[];
 
-    final results = await Future.wait<List<ExternalBookSearchResult>>(
-      <Future<List<ExternalBookSearchResult>>>[
-        _searchOpenLibrary(q),
-        _searchGoogleBooks(q),
-      ],
-    );
+    final sourceResults =
+        await Future.wait<_SourceSearchResult>(<Future<_SourceSearchResult>>[
+          _safeSearchSource('OpenLibrary', () => _searchOpenLibrary(q)),
+          _safeSearchSource('Google Books', () => _searchGoogleBooks(q)),
+        ]);
+
+    final results = sourceResults
+        .map((result) => result.results)
+        .toList(growable: false);
+    final hasAnyResults = results.any((items) => items.isNotEmpty);
+    final hasAnySuccess = sourceResults.any((result) => result.error == null);
+    if (!hasAnySuccess) {
+      final messages = sourceResults
+          .where((result) => result.error != null)
+          .map((result) => '${result.source}: ${result.error!}')
+          .join(' | ');
+      throw BookDiscoveryException(
+        messages.isEmpty ? 'Search failed.' : 'Search failed. $messages',
+      );
+    }
+    if (!hasAnyResults) {
+      final rateLimitedSources = sourceResults
+          .where((result) => result.error?.isRateLimited == true)
+          .map((result) => result.source)
+          .join(' + ');
+      if (rateLimitedSources.isNotEmpty) {
+        throw BookDiscoveryException(
+          '$rateLimitedSources rate-limited the search (429). Try again shortly.',
+        );
+      }
+    }
 
     final seen = <String>{};
     final merged = <ExternalBookSearchResult>[];
@@ -71,6 +96,27 @@ class BookDiscoveryService {
       }
     }
     return merged;
+  }
+
+  Future<_SourceSearchResult> _safeSearchSource(
+    String source,
+    Future<List<ExternalBookSearchResult>> Function() run,
+  ) async {
+    try {
+      return _SourceSearchResult(source: source, results: await run());
+    } on BookDiscoveryException catch (e) {
+      return _SourceSearchResult(
+        source: source,
+        results: const <ExternalBookSearchResult>[],
+        error: e,
+      );
+    } catch (_) {
+      return _SourceSearchResult(
+        source: source,
+        results: const <ExternalBookSearchResult>[],
+        error: const BookDiscoveryException('Unexpected search error.'),
+      );
+    }
   }
 
   Future<List<ExternalBookSearchResult>> _searchOpenLibrary(
@@ -185,10 +231,20 @@ class BookDiscoveryService {
           .openUrl('GET', uri)
           .timeout(const Duration(seconds: 12));
       req.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      req.headers.set(
+        HttpHeaders.userAgentHeader,
+        'BlackPirateX-BookTracker/1.0',
+      );
       final res = await req.close().timeout(const Duration(seconds: 15));
       final body = await utf8
           .decodeStream(res)
           .timeout(const Duration(seconds: 15));
+      if (res.statusCode == 429) {
+        throw const BookDiscoveryException(
+          'Rate limited by source API (429).',
+          isRateLimited: true,
+        );
+      }
       if (res.statusCode < 200 || res.statusCode >= 300) {
         throw BookDiscoveryException(
           'Search request failed (${res.statusCode}).',
@@ -208,10 +264,23 @@ class BookDiscoveryService {
 }
 
 class BookDiscoveryException implements Exception {
-  const BookDiscoveryException(this.message);
+  const BookDiscoveryException(this.message, {this.isRateLimited = false});
   final String message;
+  final bool isRateLimited;
   @override
   String toString() => message;
+}
+
+class _SourceSearchResult {
+  const _SourceSearchResult({
+    required this.source,
+    required this.results,
+    this.error,
+  });
+
+  final String source;
+  final List<ExternalBookSearchResult> results;
+  final BookDiscoveryException? error;
 }
 
 int? _asInt(dynamic value) {

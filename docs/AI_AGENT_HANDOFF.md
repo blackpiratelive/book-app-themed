@@ -597,3 +597,6 @@ Change home screen layout:
 - If CI analyzer fails, prioritize compatibility fixes for Flutter SDK API changes (this repo has already seen changes like `minimumSize` and `withValues(alpha: ...)`).
 - Before reintroducing any workflow file, check for duplicates under `.github/workflows/`.
 - If editing nav-bar pages, verify content does not render under `CupertinoNavigationBar`.
+- Direct source search (`lib/services/book_discovery_service.dart`) now tolerates one provider failing (including `429` rate limits) and still returns results from the other provider; only fails the whole search when both providers fail.
+- Direct source add flow / `AppController.addBook()` is local-first for account mode: the book is inserted and persisted locally immediately, then account backend sync runs in the background (UI copy in `lib/pages/direct_book_search_page.dart` was updated to reflect this).
+- Direct source search text field in `lib/pages/direct_book_search_page.dart` now unfocuses on tap outside and before search submit so keyboard/focus does not stay stuck after tapping away.
