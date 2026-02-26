@@ -28,6 +28,28 @@ class ExternalBookSearchResult {
   String get authorText =>
       authors.isEmpty ? 'Unknown author' : authors.join(', ');
 
+  ExternalBookSearchResult copyWith({
+    String? source,
+    String? id,
+    String? title,
+    List<String>? authors,
+    String? coverUrl,
+    int? pageCount,
+    int? publishedYear,
+    String? notes,
+  }) {
+    return ExternalBookSearchResult(
+      source: source ?? this.source,
+      id: id ?? this.id,
+      title: title ?? this.title,
+      authors: authors ?? this.authors,
+      coverUrl: coverUrl ?? this.coverUrl,
+      pageCount: pageCount ?? this.pageCount,
+      publishedYear: publishedYear ?? this.publishedYear,
+      notes: notes ?? this.notes,
+    );
+  }
+
   BookDraft toDraft() {
     return BookDraft(
       title: title,
@@ -47,6 +69,9 @@ class ExternalBookSearchResult {
 
 class BookDiscoveryService {
   const BookDiscoveryService();
+
+  static const String _openLibraryUserAgent =
+      'BlackPirateX Book Tracker/1.0 (OpenLibrary direct search client)';
 
   Future<List<ExternalBookSearchResult>> search(String query) async {
     final q = query.trim();
@@ -223,6 +248,38 @@ class BookDiscoveryService {
         .toList(growable: false);
   }
 
+  Future<ExternalBookSearchResult> resolveResultForAdd(
+    ExternalBookSearchResult result,
+  ) async {
+    if (result.source != 'OpenLibrary') return result;
+    final workId = result.id.trim();
+    if (workId.isEmpty || !workId.startsWith('OL')) return result;
+
+    try {
+      final uri = Uri.https('openlibrary.org', '/works/$workId.json');
+      final response = await _getJson(uri);
+      if (response is! Map) return result;
+      final map = Map<String, dynamic>.from(response);
+      final description = _extractOlDescription(map['description']);
+      final title = (map['title'] as String? ?? '').trim();
+      final covers = map['covers'];
+      final coverId = (covers is List && covers.isNotEmpty)
+          ? _asInt(covers.first)
+          : null;
+      final coverUrl = coverId == null
+          ? result.coverUrl
+          : 'https://covers.openlibrary.org/b/id/$coverId-M.jpg';
+
+      return result.copyWith(
+        title: title.isEmpty ? result.title : title,
+        coverUrl: coverUrl,
+        notes: description.isEmpty ? result.notes : description,
+      );
+    } on BookDiscoveryException {
+      return result;
+    }
+  }
+
   Future<dynamic> _getJson(Uri uri) async {
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 10);
@@ -231,10 +288,7 @@ class BookDiscoveryService {
           .openUrl('GET', uri)
           .timeout(const Duration(seconds: 12));
       req.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      req.headers.set(
-        HttpHeaders.userAgentHeader,
-        'BlackPirateX-BookTracker/1.0',
-      );
+      req.headers.set(HttpHeaders.userAgentHeader, _userAgentForUri(uri));
       final res = await req.close().timeout(const Duration(seconds: 15));
       final body = await utf8
           .decodeStream(res)
@@ -281,6 +335,23 @@ class _SourceSearchResult {
   final String source;
   final List<ExternalBookSearchResult> results;
   final BookDiscoveryException? error;
+}
+
+String _userAgentForUri(Uri uri) {
+  final host = uri.host.toLowerCase();
+  if (host == 'openlibrary.org' || host.endsWith('.openlibrary.org')) {
+    return BookDiscoveryService._openLibraryUserAgent;
+  }
+  return 'BlackPirateX-BookTracker/1.0';
+}
+
+String _extractOlDescription(dynamic raw) {
+  if (raw is String) return raw.trim();
+  if (raw is Map) {
+    final value = (raw['value'] as String? ?? '').trim();
+    if (value.isNotEmpty) return value;
+  }
+  return '';
 }
 
 int? _asInt(dynamic value) {

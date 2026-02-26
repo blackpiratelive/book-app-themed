@@ -424,9 +424,10 @@ class AppController extends ChangeNotifier {
   Future<void> addLocalBookFromDiscoveryResult(
     ExternalBookSearchResult result, {
     BookStatus targetStatus = BookStatus.readingList,
-  }) {
-    final draft = result.toDraft();
-    return addBook(
+  }) async {
+    final resolved = await _bookDiscovery.resolveResultForAdd(result);
+    final draft = resolved.toDraft();
+    await addBook(
       BookDraft(
         title: draft.title,
         author: draft.author,
