@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 
 class BookCover extends StatelessWidget {
   const BookCover({
@@ -71,6 +72,7 @@ class BookCover extends StatelessWidget {
   }
 
   File? _asLocalFile(String raw) {
+    if (kIsWeb) return null;
     final uri = Uri.tryParse(raw);
     if (uri != null && uri.scheme == 'file') {
       final path = uri.toFilePath();

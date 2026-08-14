@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'package:http/http.dart' as http;
 
 import 'package:book_app_themed/models/book.dart';
 
@@ -557,40 +557,23 @@ class BackendApiService {
     }
 
     final uri = _buildUri(baseUrl, '/api/v1/uploads/cover');
-    final boundary = '----booktracker${DateTime.now().microsecondsSinceEpoch}';
     final fileName = file.uri.pathSegments.isEmpty
         ? 'cover.jpg'
         : file.uri.pathSegments.last;
-    final contentType = _guessImageMimeType(fileName);
 
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 15);
     try {
-      final request = await client.openUrl('POST', uri);
-      request.headers.set(
-        HttpHeaders.authorizationHeader,
-        'Bearer ${idToken.trim()}',
-      );
-      request.headers.set(
-        HttpHeaders.contentTypeHeader,
-        'multipart/form-data; boundary=$boundary',
-      );
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      final req = http.MultipartRequest('POST', uri);
+      req.headers['Authorization'] = 'Bearer ${idToken.trim()}';
+      req.headers['Accept'] = 'application/json';
+      req.files.add(http.MultipartFile.fromBytes(
+        'file',
+        fileBytes,
+        filename: fileName,
+      ));
 
-      request.write('--$boundary\r\n');
-      request.write(
-        'Content-Disposition: form-data; name="file"; filename="$fileName"\r\n',
-      );
-      request.write('Content-Type: $contentType\r\n\r\n');
-      request.add(fileBytes);
-      request.write('\r\n--$boundary--\r\n');
-
-      final response = await request.close().timeout(
-        const Duration(seconds: 30),
-      );
-      final body = await utf8
-          .decodeStream(response)
-          .timeout(const Duration(seconds: 30));
+      final streamedResponse = await req.send().timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamedResponse);
+      final body = response.body;
 
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw BackendApiException(
@@ -613,14 +596,11 @@ class BackendApiService {
       return BackendUploadedCover(url: url, pathname: pathname);
     } on TimeoutException {
       throw const BackendApiException('Cover upload timed out.');
-    } on SocketException catch (e) {
-      throw BackendApiException('Network error: ${e.message}');
-    } on HandshakeException catch (e) {
-      throw BackendApiException('TLS/SSL error: ${e.message}');
     } on FormatException {
       throw const BackendApiException('Upload response was not valid JSON.');
-    } finally {
-      client.close(force: true);
+    } catch (e) {
+      if (e is BackendApiException) rethrow;
+      throw BackendApiException('Network error: ${e.toString()}');
     }
   }
 
@@ -632,35 +612,45 @@ class BackendApiService {
     Duration requestTimeout = const Duration(seconds: 10),
     Duration responseTimeout = const Duration(seconds: 12),
   }) async {
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 10);
     try {
-      final request = await client.openUrl(method, uri).timeout(requestTimeout);
-      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      final headers = <String, String>{
+        'Accept': 'application/json',
+      };
       if (bearerToken != null && bearerToken.trim().isNotEmpty) {
-        request.headers.set(
-          HttpHeaders.authorizationHeader,
-          'Bearer ${bearerToken.trim()}',
-        );
+        headers['Authorization'] = 'Bearer ${bearerToken.trim()}';
       }
       if (bodyJson != null) {
-        request.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
-        request.write(jsonEncode(bodyJson));
+        headers['Content-Type'] = 'application/json';
       }
 
-      final response = await request.close().timeout(responseTimeout);
-      final body = await utf8.decodeStream(response).timeout(responseTimeout);
-      return _HttpJsonResponse(statusCode: response.statusCode, body: body);
+      final body = bodyJson != null ? jsonEncode(bodyJson) : null;
+      http.Response response;
+
+      switch (method.toUpperCase()) {
+        case 'GET':
+          response = await http.get(uri, headers: headers).timeout(responseTimeout);
+          break;
+        case 'POST':
+          response = await http.post(uri, headers: headers, body: body).timeout(responseTimeout);
+          break;
+        case 'PUT':
+          response = await http.put(uri, headers: headers, body: body).timeout(responseTimeout);
+          break;
+        case 'DELETE':
+          response = await http.delete(uri, headers: headers, body: body).timeout(responseTimeout);
+          break;
+        default:
+          response = await http.get(uri, headers: headers).timeout(responseTimeout);
+      }
+
+      return _HttpJsonResponse(statusCode: response.statusCode, body: response.body);
     } on TimeoutException {
       throw const BackendApiException('Connection timed out.');
-    } on HandshakeException catch (e) {
-      throw BackendApiException('TLS/SSL error: ${e.message}');
-    } on SocketException catch (e) {
-      throw BackendApiException('Network error: ${e.message}');
     } on FormatException {
       throw const BackendApiException('Response was not valid UTF-8/JSON.');
-    } finally {
-      client.close(force: true);
+    } catch (e) {
+      if (e is BackendApiException) rethrow;
+      throw BackendApiException('Network error: ${e.toString()}');
     }
   }
 

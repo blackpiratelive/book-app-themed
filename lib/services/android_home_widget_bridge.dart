@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 class AndroidHomeWidgetBridge {
@@ -8,7 +7,8 @@ class AndroidHomeWidgetBridge {
   );
 
   static Future<void> refreshReadingWidget() async {
-    if (!Platform.isAndroid) return;
+    if (kIsWeb) return;
+    if (defaultTargetPlatform != TargetPlatform.android) return;
     try {
       await _channel.invokeMethod<void>('refreshReadingWidget');
     } on MissingPluginException {

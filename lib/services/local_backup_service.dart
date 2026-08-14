@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
@@ -27,6 +28,9 @@ class LocalBackupService {
   const LocalBackupService();
 
   Future<String> exportBackup(LocalBackupExportPayload payload) async {
+    if (kIsWeb) {
+      throw const LocalBackupException('ZIP export is supported on mobile/desktop devices.');
+    }
     final archive = Archive();
     final coverMappings = <Map<String, String>>[];
 
@@ -129,10 +133,10 @@ class LocalBackupService {
       throw const LocalBackupException('Backup manifest is invalid.');
     }
 
-    final coversDir = await _ensureCoversDir();
     final coverFiles = manifest['coverFiles'];
     final pathRewrite = <String, String>{};
-    if (coverFiles is List) {
+    if (!kIsWeb && coverFiles is List) {
+      final coversDir = await _ensureCoversDir();
       for (final item in coverFiles.whereType<Map>()) {
         final originalPath = (item['originalPath'] as String? ?? '').trim();
         final archivePath = (item['archivePath'] as String? ?? '').trim();

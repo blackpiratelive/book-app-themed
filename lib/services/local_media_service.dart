@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -13,6 +14,10 @@ class LocalMediaService {
       imageQuality: 90,
     );
     if (picked == null) return null;
+
+    if (kIsWeb) {
+      return picked.path;
+    }
 
     final docsDir = await getApplicationDocumentsDirectory();
     final coversDir = Directory('${docsDir.path}/local_covers');

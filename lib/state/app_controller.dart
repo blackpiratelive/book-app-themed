@@ -11,6 +11,7 @@ import 'package:book_app_themed/services/firebase_auth_service.dart';
 import 'package:book_app_themed/services/local_backup_service.dart';
 import 'package:book_app_themed/services/local_media_service.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 
 enum AppAuthSessionType {
   none,
@@ -1193,6 +1194,7 @@ class AppController extends ChangeNotifier {
   }
 
   File? _localFileFromPath(String raw) {
+    if (kIsWeb) return null;
     if (raw.trim().isEmpty) return null;
     final uri = Uri.tryParse(raw);
     if (uri != null && uri.scheme == 'file') {

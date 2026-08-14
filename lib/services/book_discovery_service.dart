@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'package:http/http.dart' as http;
 
 import 'package:book_app_themed/models/book.dart';
 
@@ -281,18 +281,12 @@ class BookDiscoveryService {
   }
 
   Future<dynamic> _getJson(Uri uri) async {
-    final client = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 10);
     try {
-      final req = await client
-          .openUrl('GET', uri)
-          .timeout(const Duration(seconds: 12));
-      req.headers.set(HttpHeaders.acceptHeader, 'application/json');
-      req.headers.set(HttpHeaders.userAgentHeader, _userAgentForUri(uri));
-      final res = await req.close().timeout(const Duration(seconds: 15));
-      final body = await utf8
-          .decodeStream(res)
-          .timeout(const Duration(seconds: 15));
+      final headers = <String, String>{
+        'Accept': 'application/json',
+        'User-Agent': _userAgentForUri(uri),
+      };
+      final res = await http.get(uri, headers: headers).timeout(const Duration(seconds: 15));
       if (res.statusCode == 429) {
         throw const BookDiscoveryException(
           'Rate limited by source API (429).',
@@ -304,15 +298,14 @@ class BookDiscoveryService {
           'Search request failed (${res.statusCode}).',
         );
       }
-      return jsonDecode(body);
+      return jsonDecode(res.body);
     } on TimeoutException {
       throw const BookDiscoveryException('Search timed out.');
-    } on SocketException catch (e) {
-      throw BookDiscoveryException('Network error: ${e.message}');
     } on FormatException {
       throw const BookDiscoveryException('Search returned invalid JSON.');
-    } finally {
-      client.close(force: true);
+    } catch (e) {
+      if (e is BookDiscoveryException) rethrow;
+      throw BookDiscoveryException('Network error: ${e.toString()}');
     }
   }
 }
