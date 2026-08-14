@@ -46,7 +46,7 @@ class FirebaseAuthService {
       if (user == null) {
         throw const AppFirebaseAuthException('Sign-in failed. Try again.');
       }
-      return _sessionFromUser(user, forceRefresh: true);
+      return await _sessionFromUser(user, forceRefresh: true);
     } on FirebaseAuthException catch (e) {
       throw AppFirebaseAuthException(_messageForFirebaseAuthError(e));
     }
@@ -79,7 +79,7 @@ class FirebaseAuthService {
           'Google sign-in failed. Try again.',
         );
       }
-      return _sessionFromUser(user, forceRefresh: true);
+      return await _sessionFromUser(user, forceRefresh: true);
     } on FirebaseAuthException catch (e) {
       throw AppFirebaseAuthException(_messageForFirebaseAuthError(e));
     }
@@ -114,7 +114,7 @@ class FirebaseAuthService {
           await user.sendEmailVerification(actionCodeSettings);
         }
       }
-      return _sessionFromUser(user, forceRefresh: true);
+      return await _sessionFromUser(user, forceRefresh: true);
     } on FirebaseAuthException catch (e) {
       throw AppFirebaseAuthException(_messageForFirebaseAuthError(e));
     }
