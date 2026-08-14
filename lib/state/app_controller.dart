@@ -1193,7 +1193,7 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  File? _localFileFromPath(String raw) {
+  dynamic _localFileFromPath(String raw) {
     if (kIsWeb) return null;
     if (raw.trim().isEmpty) return null;
     final uri = Uri.tryParse(raw);

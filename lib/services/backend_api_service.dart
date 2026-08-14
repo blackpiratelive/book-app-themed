@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:book_app_themed/models/book.dart';
@@ -544,22 +545,27 @@ class BackendApiService {
   Future<BackendUploadedCover> uploadCoverImageV1({
     required String baseUrl,
     required String idToken,
-    required File file,
+    required dynamic file,
   }) async {
-    if (!await file.exists()) {
+    if (kIsWeb) {
+      throw const BackendApiException(
+        'Cover image upload from local file system is supported on mobile/desktop apps.',
+      );
+    }
+    if (!await (file as dynamic).exists()) {
       throw const BackendApiException(
         'Selected cover image file was not found.',
       );
     }
-    final fileBytes = await file.readAsBytes();
+    final fileBytes = await (file as dynamic).readAsBytes() as List<int>;
     if (fileBytes.isEmpty) {
       throw const BackendApiException('Selected cover image file is empty.');
     }
 
     final uri = _buildUri(baseUrl, '/api/v1/uploads/cover');
-    final fileName = file.uri.pathSegments.isEmpty
+    final fileName = (file as dynamic).uri.pathSegments.isEmpty
         ? 'cover.jpg'
-        : file.uri.pathSegments.last;
+        : (file as dynamic).uri.pathSegments.last as String;
 
     try {
       final req = http.MultipartRequest('POST', uri);

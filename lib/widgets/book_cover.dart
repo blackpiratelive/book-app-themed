@@ -46,13 +46,15 @@ class BookCover extends StatelessWidget {
     final value = coverUrl.trim();
     if (value.isEmpty) return _DefaultCover(title: title);
 
-    final localFile = _asLocalFile(value);
-    if (localFile != null) {
-      return Image.file(
-        localFile,
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => _DefaultCover(title: title),
-      );
+    if (!kIsWeb) {
+      final localFile = _asLocalFile(value);
+      if (localFile != null) {
+        return Image.file(
+          localFile,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => _DefaultCover(title: title),
+        );
+      }
     }
 
     return CachedNetworkImage(
@@ -71,7 +73,7 @@ class BookCover extends StatelessWidget {
     );
   }
 
-  File? _asLocalFile(String raw) {
+  dynamic _asLocalFile(String raw) {
     if (kIsWeb) return null;
     final uri = Uri.tryParse(raw);
     if (uri != null && uri.scheme == 'file') {
