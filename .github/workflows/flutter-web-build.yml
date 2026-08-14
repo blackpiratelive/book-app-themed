@@ -1,0 +1,70 @@
+name: Flutter Web Build & Commit
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'web-dist/**'
+      - 'README.md'
+      - '.github/workflows/flutter-web-build.yml'
+  workflow_dispatch:
+    inputs:
+      target_folder:
+        description: 'Target folder to commit Flutter Web build output'
+        required: true
+        default: 'web-dist'
+
+jobs:
+  build-and-commit-web:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Set up Flutter CLI
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Enable Flutter Web support and generate web platform
+        run: |
+          flutter config --enable-web
+          flutter create --platforms=web --project-name book_app_themed --org com.blackpiratex .
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Build Flutter Web release
+        run: flutter build web --release --base-href "/"
+
+      - name: Prepare target folder and copy Flutter web output
+        shell: bash
+        run: |
+          set -euo pipefail
+          TARGET_DIR="${{ github.event.inputs.target_folder || 'web-dist' }}"
+          echo "Copying compiled Flutter web output from build/web/ to $TARGET_DIR/"
+          mkdir -p "$TARGET_DIR"
+          rsync -av --delete build/web/ "$TARGET_DIR/"
+          ls -lah "$TARGET_DIR/"
+
+      - name: Commit and push compiled web build
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "build(web): auto-deploy compiled Flutter web output [skip ci]"
+          file_pattern: "web-dist/**"
+          branch: ${{ github.ref_name }}
