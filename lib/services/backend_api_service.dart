@@ -615,7 +615,6 @@ class BackendApiService {
     required Uri uri,
     String? bearerToken,
     Map<String, dynamic>? bodyJson,
-    Duration requestTimeout = const Duration(seconds: 10),
     Duration responseTimeout = const Duration(seconds: 12),
   }) async {
     try {
@@ -887,13 +886,6 @@ class BackendApiService {
   }
 }
 
-String _guessImageMimeType(String fileName) {
-  final lower = fileName.toLowerCase();
-  if (lower.endsWith('.png')) return 'image/png';
-  if (lower.endsWith('.webp')) return 'image/webp';
-  if (lower.endsWith('.gif')) return 'image/gif';
-  return 'image/jpeg';
-}
 
 class BackendApiException implements Exception {
   const BackendApiException(this.message);
